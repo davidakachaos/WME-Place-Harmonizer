@@ -2187,7 +2187,7 @@
                     badInput: false, outputFormat: '',
                     action: function() {
                         let newPhoneVal = $('#WMEPH-PhoneAdd'+DEV_VERS_STR).val();
-                        let newPhone = normalizePhone(newPhoneVal, outputFormat, 'inputted', item);
+                        let newPhone = normalizePhone(newPhoneVal, this.outputFormat, 'inputted', item);
                         if (newPhone === 'badPhone') {
                             this.badInput = true;
                         } else {
@@ -2387,7 +2387,7 @@
                     specCases: [],
                     action: function() {
                         newAliases = insertAtIX(newAliases,optionalAlias,0);
-                        if (specCases.indexOf('altName2Desc') > -1 &&  item.attributes.description.toUpperCase().indexOf(optionalAlias.toUpperCase()) === -1 ) {
+                        if (this.specCases.indexOf('altName2Desc') > -1 &&  item.attributes.description.toUpperCase().indexOf(optionalAlias.toUpperCase()) === -1 ) {
                             newDescripion = optionalAlias + '\n' + newDescripion;
                             W.model.actionManager.add(new UpdateObject(item, { description: newDescripion }));
                             fieldUpdateObject.description='#dfd';
