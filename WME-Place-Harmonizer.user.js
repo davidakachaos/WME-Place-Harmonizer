@@ -24,11 +24,7 @@
 // @grant       GM_addStyle
 // @grant       GM_getResourceText
 // ==/UserScript==
-
-
-(function () {
     "use strict";
-
     const WMEPH_WHATS_NEW_LIST = [  // New in this version
         '1.2.48: NEW - Added a flag for missing payment type when PLA cost is not free or unknown',
         '1.2.47: NEW - Added a flag for "Can cars exit parking lot when closed?"',
@@ -108,6 +104,10 @@
     const WL_LOCAL_STORE_NAME = 'WMEPH-venueWhitelistNew';
     const WL_LOCAL_STORE_NAME_COMPRESSED = 'WMEPH-venueWhitelistCompressed';
     const jqUI_CssSrc = GM_getResourceText("jqUI_CSS");
+(function () {
+
+
+
     GM_addStyle(jqUI_CssSrc);
     GM_addStyle([
         '.wmeph-btn, .wmephwl-btn {height:18px;}',
@@ -736,17 +736,12 @@
     }
     class Venue {
         constructor(wazeModel) {
-            this._wazeModel = wazeModel
+            this._wazeModel = wazeModel;
         }
 
         get wazeModel() {return this._wazeModel;}
         
         
-    }
-    class PLA extends Venue {
-        constructor(wazeModel) {
-            super(wazeModel)
-        }
     }
     class Harmonizer {
         constructor(venue, harmFunc, flagResult) {
@@ -795,6 +790,7 @@
 
 
     /* ****** Pull PNH and Userlist data ****** */
+    debugger;
     setTimeout(function() {
         // Pull USA PNH Data
         setTimeout(function() {
@@ -1336,6 +1332,7 @@
             if ( !s && returnType === 'existing' ) {
                 if (!VENUES.isPLA(item) || (VENUES.isPLA(item) && item.attributes.brand && W.model.venues.categoryBrands.PARKING_LOT.indexOf(item.attributes.brand) !== -1)) {
                     bannButt.phoneMissing.active = true;
+                    bannButt.phoneMissing.outputFormat = outputFormat;
                     if (currentWL.phoneWL) {
                         bannButt.phoneMissing.WLactive = false;
                     }
@@ -1498,7 +1495,7 @@
             placePL = placePL.replace(/\&mapProblemFilter=[^\&]+(\&?)/g, '$1');  // remove Permalink Layers
             placePL = placePL.replace(/\&mapUpdateRequestFilter=[^\&]+(\&?)/g, '$1');  // remove Permalink Layers
             placePL = placePL.replace(/\&venueFilter=[^\&]+(\&?)/g, '$1');  // remove Permalink Layers
-            let region, state2L, newPlaceURL, approveRegionURL, servID, useState = true;
+            let newPlaceURL, approveRegionURL;
             let gFormState = "";
             let PNHOrderNum = '', PNHNameTemp = '', PNHNameTempWeb = '';
             severityButt = 0;
@@ -2187,7 +2184,7 @@
                 phoneMissing: {
                     active: false, severity: 1, message: 'No ph#: <input type="text" id="WMEPH-PhoneAdd'+DEV_VERS_STR+'" autocomplete="off" style="font-size:0.85em;width:100px;padding-left:3px;color:#000;background-color:#DDF">',
                     value: "Add", title: 'Add phone to place',
-                    badInput: false,
+                    badInput: false, outputFormat: '',
                     action: function() {
                         let newPhoneVal = $('#WMEPH-PhoneAdd'+DEV_VERS_STR).val();
                         let newPhone = normalizePhone(newPhoneVal, outputFormat, 'inputted', item);
@@ -2387,6 +2384,7 @@
 
                 addAlias: {    // no WL
                     active: false, severity: 0, message: "Is " + optionalAlias + " at this location?", value: "Yes", title: 'Add ' + optionalAlias,
+                    specCases: [],
                     action: function() {
                         newAliases = insertAtIX(newAliases,optionalAlias,0);
                         if (specCases.indexOf('altName2Desc') > -1 &&  item.attributes.description.toUpperCase().indexOf(optionalAlias.toUpperCase()) === -1 ) {
@@ -3126,7 +3124,6 @@
                 countryCode = "CAN";
             } else if (addr.country.name === "American Samoa") {
                 countryCode = "USA";
-                useState = false;
             } else if (addr.country.name === "Guam") {
                 countryCode = "USA";
                 useState = false;
@@ -3147,7 +3144,8 @@
             }
 
             // Parse state-based data
-            state2L = "Unknown"; region = "Unknown";
+            let state2L = "Unknown"; 
+            let region = "Unknown";
             for (let usdix=1; usdix<USA_STATE_DATA.length; usdix++) {
                 stateDataTemp = USA_STATE_DATA[usdix].split("|");
                 if (addr.state.name === stateDataTemp[ps_state_ix]) {
@@ -3198,6 +3196,20 @@
                 return 3;
             }
 
+            // Phone formatting
+            let outputFormat = "({0}) {1}-{2}";
+            if ( containsAny(["CA","CO"],[region,state2L]) && (/^\d{3}-\d{3}-\d{4}$/.test(item.attributes.phone))) {
+                outputFormat = "{0}-{1}-{2}";
+            } else if (region === "SER" && !(/^\(\d{3}\) \d{3}-\d{4}$/.test(item.attributes.phone))) {
+                outputFormat = "{0}-{1}-{2}";
+            } else if (region === "GLR") {
+                outputFormat = "{0}-{1}-{2}";
+            } else if (state2L === "NV") {
+                outputFormat = "{0}-{1}-{2}";
+            } else if (countryCode === "CAN") {
+                outputFormat = "+1-{0}-{1}-{2}";
+            }
+            
             // If no gas station name, replace with brand name
             if (hpMode.harmFlag && item.attributes.categories[0] === 'GAS_STATION' && (!newName || newName.trim().length === 0) && item.attributes.brand) {
                 newName = item.attributes.brand;
@@ -3386,6 +3398,7 @@
                                 optionalAlias = specCases[scix].match(/^optionAltName<>(.+)/i)[1];
                                 if (newAliases.indexOf(optionalAlias) === -1) {
                                     bannButt.addAlias.active = true;
+                                    bannButt.specCases = specCases;
                                 }
                             }
                             // Gas Station forceBranding
@@ -4200,19 +4213,7 @@
                     }
                 }
 
-                // Phone formatting
-                let outputFormat = "({0}) {1}-{2}";
-                if ( containsAny(["CA","CO"],[region,state2L]) && (/^\d{3}-\d{3}-\d{4}$/.test(item.attributes.phone))) {
-                    outputFormat = "{0}-{1}-{2}";
-                } else if (region === "SER" && !(/^\(\d{3}\) \d{3}-\d{4}$/.test(item.attributes.phone))) {
-                    outputFormat = "{0}-{1}-{2}";
-                } else if (region === "GLR") {
-                    outputFormat = "{0}-{1}-{2}";
-                } else if (state2L === "NV") {
-                    outputFormat = "{0}-{1}-{2}";
-                } else if (countryCode === "CAN") {
-                    outputFormat = "+1-{0}-{1}-{2}";
-                }
+
                 newPhone = normalizePhone(item.attributes.phone, outputFormat, 'existing', item);
 
                 // Check if valid area code  #LOC# USA and CAN only
@@ -4450,6 +4451,7 @@
             if ( 'BRIDGE|FOREST_GROVE|DAM|TUNNEL|CEMETERY'.split('|').indexOf(item.attributes.categories[0]) > -1 ) {
                 bannButt.NewPlaceSubmit.active = false;
                 bannButt.phoneMissing.severity = 0;
+                bannButt.phoneMissing.outputFormat = outputFormat;
                 bannButt.phoneMissing.WLactive = false;
                 bannButt.urlMissing.severity = 0;
                 bannButt.urlMissing.WLactive = false;
@@ -4457,6 +4459,7 @@
             // Some cats don't need PNH messages and url/phone messages
             if ( 'ISLAND|SEA_LAKE_POOL|RIVER_STREAM|CANAL'.split('|').indexOf(item.attributes.categories[0]) > -1 ) {
                 bannButt.NewPlaceSubmit.active = false;
+                bannButt.phoneMissing.outputFormat = outputFormat;
                 bannButt.phoneMissing.active = false;
                 bannButt.urlMissing.active = false;
             }
@@ -4532,6 +4535,7 @@
                     bannButt.hnMissing.active = false;
                     bannButt.urlMissing.severity = 0;
                     bannButt.phoneMissing.severity = 0;
+                    bannButt.phoneMissing.outputFormat = outputFormat;
                     //assembleBanner();
 
 
