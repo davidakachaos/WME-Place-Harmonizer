@@ -24,90 +24,88 @@
 // @grant       GM_addStyle
 // @grant       GM_getResourceText
 // ==/UserScript==
-    "use strict";
-    const WMEPH_WHATS_NEW_LIST = [  // New in this version
-        '1.2.48: NEW - Added a flag for missing payment type when PLA cost is not free or unknown',
-        '1.2.47: NEW - Added a flag for "Can cars exit parking lot when closed?"',
-        '1.2.46: NEW - Added a flag for PLA stop points that have never been moved.',
-        '1.2.45: NEW - Added a button to open the Google link search box and pre-fill it with the place name.',
-        '1.2.45: NEW - Updating Google place link will automatically re-run WMEPH.',
-        '1.2.44: NEW - Added several flags for parking lots.',
-        '1.2.43: FIXED - WMEPH should run on places with detail updates, but not new place PURs.',
-        '1.2.42: FIXED - WMEPH should not run on places with PURs.',
-        '1.2.41: FIXED - Removed custom USPS code for SER.',
-        '1.2.40: FIXED - Words inside parentheses should not be automatically title cased.',
-        '1.2.40: FIXED - Removed Transportation category from rest area places.',
-        '1.2.39: NEW - Added 6 month check/highlight for missing Google links.',
-        '1.2.38: FIXED - WL of non-standard HN flag was not allowing auto-lock.',
-        '1.2.36: NEW - Default to on for \'Disable check for "No external provider link(s)" on Parking Lot Areas\' setting.',
-        '1.2.36: FIXED - Alert that place address could not be inferred appears for places that can be inferred.',
-        '1.2.35: NEW - Removed street name entry box and replaced with Edit Address button until bug can be fixed.',
-        '1.2.34: FIXED - WME language was occasionally causing script to fail.',
-        '1.2.32: Version bump - no changes.',
-        '1.2.31: Version bump. (no changes).',
-        '1.2.30: NEW - Added Change to Doctor / Clinic button to places with Offices category.',
-        '1.2.29: FIXED - index.html, index.htm, index.php should not be stripped from URL\'s.',
-        '1.2.28: Moved jqueryui to Greasy fork and created new repository at greasy fork.',
-        '1.2.27: FIXED - Accidentally commented @downloadURL line in last release.',
-        '1.2.26: FIXED - Clicking option to fill PLAs calls a function that adds a new event listener (memory leak).',
-        '1.2.25: FIXED - Creating a new PLA fails due to feature added in last release.',
-        '1.2.24: NEW - Option to fill PLA\'s based on parking lot type.',
-        '1.2.23: Fix t0s derp',
-        '1.2.20: Fixed grammatical error "a area"',
-        '1.2.18: FIXED - Some categories throw an error when being set from PNH.',
-        '1.2.17: FIXED - Updated locale (user language).',
-        '1.2.16: FIXED - Revised message that was added in last version.',
-        '1.2.15: NEW - Added message for "Change to Doctor / Clinic" button on Personal Care places.',
-        '1.2.14: FIXED - Hospitals not displaying the "Keywords suggest this may not be a hospital" warning.',
-        '1.2.13: FIXED - PLAs incorrectly being marked as duplicates when option to exclude is turned on.',
-        '1.2.12: FIXED - WME changed from en-US back to en.',
-        '1.2.11: NEW - Change to Doctor / Clinic button displayed for places with Personal Care category.',
-        '1.2.10: FIXED - Emergency room points being flagged as duplicates of hospital area.',
-        '1.2.9: NEW - support for new WME medical categories.',
-        '1.2.8: FIXED - Place Website button was not showing up in certain scenarios.',
-        '1.2.7: FIXED - Place Website button was not showing up.',
-        '1.2.6: Updated links from old wiki to Wazeopedia.',
-        '1.2.5: Changed user language to us-EN.',
-        '1.2.4: Moved "Place Website" button next to "Run WMEPH" button, so it is always accessible.',
-        '1.2.4: Web Search and Place Locator buttons are now side-by-side.',
-        '1.2.3: Fixed bug from last release.',
-        '1.2.2: FIXED - Whitelisting missing HN doesn\'t allow auto-lock.',
-        '1.2.1: Removed R2+ restriction for using this script.',
-        '1.2.0: Production release.'
-    ];
-    const WMEPH_WHATS_NEW_META_LIST = [  // New in this major version
-        'WMEPH is now available for R1 editors to use!',
-        'Yellow "caution" map highlights.',
-        'Missing external provider (Google linked place) is flagged if R3+.',
-        'Optional setting to treat missing external provider link as a blue flag instead of red.',
-        'Improvements to hospital, gas station, and PLA highlighting.',
-        'Layout and data entry improvements.',
-        'A boatload of bug fixes.'
-    ];
-    const MAJOR_NEW_FEATURE = false;  // set to true to make an alert pop up after script update with new feature
-    const WMEPH_VERSION = GM_info.script.version.toString(); // pull version from header
-    const WMEPH_VERSION_META = WMEPH_VERSION.match(/(\d+\.\d+)/i)[1];  // get the X.X version
-    const SCRIPT_NAME = GM_info.script.name.toString();
-    const IS_DEV_VERSION = (SCRIPT_NAME.match(/Beta/i) !== null);  //  enables dev messages and unique DOM options if the script is called "... Beta"
-    const DEV_VERS_STRING_MASTER = "Beta";
-    const DEV_VERS_STR = IS_DEV_VERSION ? DEV_VERS_STRING_MASTER : '';
-    const DEV_VERS_STR_SPACE = IS_DEV_VERSION ? ' ' + DEV_VERS_STR : '';
-    const DEV_VERS_STR_DASH = IS_DEV_VERSION ? '-' + DEV_VERS_STR : '';  // strings to differentiate DOM elements between regular and beta script
-    const BETA_DATA_DELAY = IS_DEV_VERSION ? 20 : 10;
+"use strict";
+const WMEPH_WHATS_NEW_LIST = [  // New in this version
+    '1.2.48: NEW - Added a flag for missing payment type when PLA cost is not free or unknown',
+    '1.2.47: NEW - Added a flag for "Can cars exit parking lot when closed?"',
+    '1.2.46: NEW - Added a flag for PLA stop points that have never been moved.',
+    '1.2.45: NEW - Added a button to open the Google link search box and pre-fill it with the place name.',
+    '1.2.45: NEW - Updating Google place link will automatically re-run WMEPH.',
+    '1.2.44: NEW - Added several flags for parking lots.',
+    '1.2.43: FIXED - WMEPH should run on places with detail updates, but not new place PURs.',
+    '1.2.42: FIXED - WMEPH should not run on places with PURs.',
+    '1.2.41: FIXED - Removed custom USPS code for SER.',
+    '1.2.40: FIXED - Words inside parentheses should not be automatically title cased.',
+    '1.2.40: FIXED - Removed Transportation category from rest area places.',
+    '1.2.39: NEW - Added 6 month check/highlight for missing Google links.',
+    '1.2.38: FIXED - WL of non-standard HN flag was not allowing auto-lock.',
+    '1.2.36: NEW - Default to on for \'Disable check for "No external provider link(s)" on Parking Lot Areas\' setting.',
+    '1.2.36: FIXED - Alert that place address could not be inferred appears for places that can be inferred.',
+    '1.2.35: NEW - Removed street name entry box and replaced with Edit Address button until bug can be fixed.',
+    '1.2.34: FIXED - WME language was occasionally causing script to fail.',
+    '1.2.32: Version bump - no changes.',
+    '1.2.31: Version bump. (no changes).',
+    '1.2.30: NEW - Added Change to Doctor / Clinic button to places with Offices category.',
+    '1.2.29: FIXED - index.html, index.htm, index.php should not be stripped from URL\'s.',
+    '1.2.28: Moved jqueryui to Greasy fork and created new repository at greasy fork.',
+    '1.2.27: FIXED - Accidentally commented @downloadURL line in last release.',
+    '1.2.26: FIXED - Clicking option to fill PLAs calls a function that adds a new event listener (memory leak).',
+    '1.2.25: FIXED - Creating a new PLA fails due to feature added in last release.',
+    '1.2.24: NEW - Option to fill PLA\'s based on parking lot type.',
+    '1.2.23: Fix t0s derp',
+    '1.2.20: Fixed grammatical error "a area"',
+    '1.2.18: FIXED - Some categories throw an error when being set from PNH.',
+    '1.2.17: FIXED - Updated locale (user language).',
+    '1.2.16: FIXED - Revised message that was added in last version.',
+    '1.2.15: NEW - Added message for "Change to Doctor / Clinic" button on Personal Care places.',
+    '1.2.14: FIXED - Hospitals not displaying the "Keywords suggest this may not be a hospital" warning.',
+    '1.2.13: FIXED - PLAs incorrectly being marked as duplicates when option to exclude is turned on.',
+    '1.2.12: FIXED - WME changed from en-US back to en.',
+    '1.2.11: NEW - Change to Doctor / Clinic button displayed for places with Personal Care category.',
+    '1.2.10: FIXED - Emergency room points being flagged as duplicates of hospital area.',
+    '1.2.9: NEW - support for new WME medical categories.',
+    '1.2.8: FIXED - Place Website button was not showing up in certain scenarios.',
+    '1.2.7: FIXED - Place Website button was not showing up.',
+    '1.2.6: Updated links from old wiki to Wazeopedia.',
+    '1.2.5: Changed user language to us-EN.',
+    '1.2.4: Moved "Place Website" button next to "Run WMEPH" button, so it is always accessible.',
+    '1.2.4: Web Search and Place Locator buttons are now side-by-side.',
+    '1.2.3: Fixed bug from last release.',
+    '1.2.2: FIXED - Whitelisting missing HN doesn\'t allow auto-lock.',
+    '1.2.1: Removed R2+ restriction for using this script.',
+    '1.2.0: Production release.'
+];
+const WMEPH_WHATS_NEW_META_LIST = [  // New in this major version
+    'WMEPH is now available for R1 editors to use!',
+    'Yellow "caution" map highlights.',
+    'Missing external provider (Google linked place) is flagged if R3+.',
+    'Optional setting to treat missing external provider link as a blue flag instead of red.',
+    'Improvements to hospital, gas station, and PLA highlighting.',
+    'Layout and data entry improvements.',
+    'A boatload of bug fixes.'
+];
+const MAJOR_NEW_FEATURE = false;  // set to true to make an alert pop up after script update with new feature
+const WMEPH_VERSION = GM_info.script.version.toString(); // pull version from header
+const WMEPH_VERSION_META = WMEPH_VERSION.match(/(\d+\.\d+)/i)[1];  // get the X.X version
+const SCRIPT_NAME = GM_info.script.name.toString();
+const IS_DEV_VERSION = (SCRIPT_NAME.match(/Beta/i) !== null);  //  enables dev messages and unique DOM options if the script is called "... Beta"
+const DEV_VERS_STRING_MASTER = "Beta";
+const DEV_VERS_STR = IS_DEV_VERSION ? DEV_VERS_STRING_MASTER : '';
+const DEV_VERS_STR_SPACE = IS_DEV_VERSION ? ' ' + DEV_VERS_STR : '';
+const DEV_VERS_STR_DASH = IS_DEV_VERSION ? '-' + DEV_VERS_STR : '';  // strings to differentiate DOM elements between regular and beta script
+const BETA_DATA_DELAY = IS_DEV_VERSION ? 20 : 10;
 
-    const WME_SERVICES_ARRAY = ["VALLET_SERVICE","DRIVETHROUGH","WI_FI","RESTROOMS","CREDIT_CARDS","RESERVATIONS","OUTSIDE_SEATING","AIR_CONDITIONING","PARKING_FOR_CUSTOMERS","DELIVERIES","TAKE_AWAY","WHEELCHAIR_ACCESSIBLE","DISABILITY_PARKING"];
-    const CAT_LOOKUP = {};  // values are set later
-    const COLLEGE_ABBREVIATIONS = 'USF|USFSP|UF|UCF|UA|UGA|FSU|UM|SCP|FAU|FIU';
+const WME_SERVICES_ARRAY = ["VALLET_SERVICE","DRIVETHROUGH","WI_FI","RESTROOMS","CREDIT_CARDS","RESERVATIONS","OUTSIDE_SEATING","AIR_CONDITIONING","PARKING_FOR_CUSTOMERS","DELIVERIES","TAKE_AWAY","WHEELCHAIR_ACCESSIBLE","DISABILITY_PARKING"];
+const CAT_LOOKUP = {};  // values are set later
+const COLLEGE_ABBREVIATIONS = 'USF|USFSP|UF|UCF|UA|UGA|FSU|UM|SCP|FAU|FIU';
 
-    const SEARCH_RESULTS_WINDOW_NAME = '"WMEPH Search Results"';
-    const WL_BUTT_TEXT = 'WL';
-    const WL_LOCAL_STORE_NAME = 'WMEPH-venueWhitelistNew';
-    const WL_LOCAL_STORE_NAME_COMPRESSED = 'WMEPH-venueWhitelistCompressed';
-    const jqUI_CssSrc = GM_getResourceText("jqUI_CSS");
+const SEARCH_RESULTS_WINDOW_NAME = '"WMEPH Search Results"';
+const WL_BUTT_TEXT = 'WL';
+const WL_LOCAL_STORE_NAME = 'WMEPH-venueWhitelistNew';
+const WL_LOCAL_STORE_NAME_COMPRESSED = 'WMEPH-venueWhitelistCompressed';
+const jqUI_CssSrc = GM_getResourceText("jqUI_CSS");
+
 (function () {
-
-
-
     GM_addStyle(jqUI_CssSrc);
     GM_addStyle([
         '.wmeph-btn, .wmephwl-btn {height:18px;}',
@@ -118,7 +116,6 @@
         '#WMEPH_tools div { padding-bottom: 2px !important; }',
         '.ui-autocomplete { max-height: 300px;overflow-y: auto;overflow-x: hidden;} '
     ].join('\n'));
-
 
     let USA_PNH_DATA, USA_PNH_NAMES = [], USA_CH_DATA, USA_STATE_DATA, USA_CH_NAMES = [];  // Storage for PNH and Category data
     let CAN_PNH_DATA, CAN_PNH_NAMES = [];  // let CAN_CH_DATA, CAN_CH_NAMES = [] not used for now
@@ -740,12 +737,12 @@
         }
 
         get wazeModel() {return this._wazeModel;}
-        
-        
+
+
     }
     class Harmonizer {
         constructor(venue, harmFunc, flagResult) {
-            
+
         }
     }
     //     function inheritPrototype(childObject, parentObject) {
@@ -2403,8 +2400,9 @@
 
                 addCat2: {   // no WL
                     active: false, severity: 0, message: "Is there a " + newCategories[0] + " at this location?", value: "Yes", title: 'Add ' + newCategories[0],
+                    altCategories: [],
                     action: function() {
-                        newCategories.push.apply(newCategories,altCategories);
+                        newCategories.push.apply(newCategories,this.altCategories);
                         W.model.actionManager.add(new UpdateObject(item, { categories: newCategories }));
                         fieldUpdateObject.categories='#dfd';
                         highlightChangedFields(fieldUpdateObject,hpMode);
@@ -3209,7 +3207,7 @@
             } else if (countryCode === "CAN") {
                 outputFormat = "+1-{0}-{1}-{2}";
             }
-            
+
             // If no gas station name, replace with brand name
             if (hpMode.harmFlag && item.attributes.categories[0] === 'GAS_STATION' && (!newName || newName.trim().length === 0) && item.attributes.brand) {
                 newName = item.attributes.brand;
@@ -3701,6 +3699,7 @@
                         }
                         // Enable optional 2nd category button
                         if (specCases.indexOf('buttOn_addCat2') > -1 && newCategories.indexOf(catTransWaze2Lang[altCategories[0]]) === -1 ) {
+                            bannButt.addCat2.altCategories = altCategories;
                             bannButt.addCat2.message = "Is there a " + catTransWaze2Lang[altCategories[0]] + " at this location?";
                             bannButt.addCat2.title = 'Add ' + catTransWaze2Lang[altCategories[0]];
                         }
