@@ -142,18 +142,21 @@
             console.log('WMEPH' + DEV_VERS_STR_DASH + ': ' + msg, (obj ? obj : ''));
         }
     }
-    let COMMON = {
-        callAjax: function(url, onSuccess) {
+    class App {
+        constructor() {
+            this._googleLinkHash = {};
+        }
+        callAjax(url, onSuccess) {
             $.ajax({
                 type: 'GET',
                 url: url,
                 jsonp: 'callback', data: { alt: 'json-in-script' }, dataType: 'jsonp',
                 success: onSuccess
             });
-        },
+        }
+        
         // Change place.name to title case
-
-        toTitleCase: function(str) {
+        toTitleCase(str) {
             if (!str) {
                 return str;
             }
@@ -216,10 +219,10 @@
                 }
             }
             return str;
-        },
+        }
 
         // Change place.name to title case
-        toTitleCaseStrong: function(str) {
+        toTitleCaseStrong(str) {
             if (!str) {
                 return str;
             }
@@ -271,18 +274,18 @@
                 }
             }
             return str;
-        },
+        }
 
-        addUpdateAction: function(updateObj, actions) {
+        addUpdateAction(updateObj, actions) {
             let action = new UpdateObject(item, updateObj);
             if (actions) {
                 actions.push(action);
             } else {
                 W.model.actionManager.add(action);
             }
-        },
+        }
 
-        setServiceChecked: function(servBtn, checked, actions) {
+        setServiceChecked(servBtn, checked, actions) {
             let servID = WME_SERVICES_ARRAY[servBtn.servIDIndex];
             let checkboxChecked = $("#service-checkbox-"+servID).prop('checked');
             let toggle = typeof checked === 'undefined';
@@ -319,22 +322,22 @@
             }
             updateServicesChecks(bannServ);
             if (!toggle) servBtn.active = checked;
-        },
+        }
 
-        insertCss: function(code) {
+        insertCss(code) {
             $('<style>', {type:'text/css'}).html(code).appendTo($('head'));
-        },
+        }
 
         // Removes duplicate strings from string array
-        uniq: function(a) {
+        uniq(a) {
             let seen = {};
             return a.filter(function(item) {
                 return seen.hasOwnProperty(item) ? false : (seen[item] = true);
             });
-        },
+        }
 
         // This function runs at script load, and splits the category dataset into the searchable categories.
-        makeCatCheckList: function(CH_DATA) {  // Builds the list of search names to match to the WME place name
+        makeCatCheckList(CH_DATA) {  // Builds the list of search names to match to the WME place name
             let CH_CATS = [];
             let CH_DATA_headers = CH_DATA[0].split("|");  // split the data headers out
             let pc_wmecat_ix = CH_DATA_headers.indexOf("pc_wmecat");  // find the indices needed for the function
@@ -351,10 +354,10 @@
                 CH_CATS.push(chEntryTemp[pc_wmecat_ix]);
             }
             return CH_CATS;
-        },
+        }
 
         // This function runs at script load, and builds the search name dataset to compare the WME selected place name to.
-        makeNameCheckList: function(PNH_DATA) {  // Builds the list of search names to match to the WME place name
+        makeNameCheckList(PNH_DATA) {  // Builds the list of search names to match to the WME place name
             let PNH_NAMES = [];
             let PNH_DATA_headers = PNH_DATA[0].split("|");  // split the data headers out
             let ph_name_ix = PNH_DATA_headers.indexOf("ph_name");  // find the indices needed for the function
@@ -479,9 +482,9 @@
             let t1 = performance.now();  // log search time
             //phlog("Built search list of " + PNH_DATA.length + " PNH places in " + (t1 - t0) + " milliseconds.");
             return PNH_NAMES;
-        },
+        }
 
-        sortWithIndex: function(toSort) {
+        sortWithIndex(toSort) {
             for (let i = 0; i < toSort.length; i++) {
                 toSort[i] = [toSort[i], i];
             }
@@ -494,15 +497,15 @@
                 toSort[j] = toSort[j][0];
             }
             return toSort;
-        },
+        }
 
-        destroyDupeLabels: function(){
+        destroyDupeLabels(){
             WMEPH_NameLayer.destroyFeatures();
             WMEPH_NameLayer.setVisibility(false);
-        },
+        }
 
         // When a dupe is deleted, delete the dupe label
-        deleteDupeLabel: function(){
+        deleteDupeLabel(){
             //phlog('Clearing dupe label...');
             setTimeout(function() {
                 let actionsList = W.model.actionManager.actions;
@@ -527,18 +530,17 @@
                 }
                 */
             },20);
-        },
+        }
 
-        zoomPlace: function() {
+        zoomPlace() {
             if (W.selectionManager.selectedItems.length === 1 && W.selectionManager.selectedItems[0].model.type === "venue") {
                 W.map.moveTo(W.selectionManager.selectedItems[0].model.geometry.getCentroid().toLonLat(), 7);
             } else {
                 W.map.moveTo(WMEPHmousePosition, 5);
             }
-        },
+        }
 
-        googleLinkHash: {},
-        modifyGoogleLinks: function() {
+        modifyGoogleLinks() {
             // MutationObserver will be notified when Google place ID divs are added, then update them to be hyperlinks.
             let observer = new MutationObserver(function(mutations) {
                 mutations.forEach(function(mutation) {
@@ -552,8 +554,8 @@
                                 for(let j=0; j<placeLinkDivs.length; j++) {
                                     let placeLinkDiv = placeLinkDivs[j];
                                     let placeLinkId = placeLinkDiv.innerHTML;
-                                    if (this.googleLinkHash.hasOwnProperty(placeLinkId)) {
-                                        placeLinkDiv.innerHTML = this.googleLinkHash[placeLinkId];
+                                    if (this._googleLinkHash.hasOwnProperty(placeLinkId)) {
+                                        placeLinkDiv.innerHTML = this._googleLinkHash[placeLinkId];
                                     }
                                 }
                             }
@@ -576,7 +578,6 @@
             });
             $(document).ajaxSuccess(function(event, jqXHR, ajaxOptions, data) {
                 try {
-                    let ix;
                     if (ajaxOptions && ajaxOptions.hasOwnProperty("url")) {
                         if (ajaxOptions.url.startsWith("/maps/api/place/details/json")) {
                             if (data && data.hasOwnProperty("status") && data.status === "OK") {
@@ -585,7 +586,7 @@
                                     for (let ix = 0; ix < gpids.length; ix++) {
                                         if (data.result.place_id === gpids[ix].innerHTML) {
                                             let html = "<a href='" + data.result.url + "' target='_wmegpid'>" + data.result.place_id + "</a>";
-                                            _googleLinkHash[data.result.place_id] = html;
+                                            this._googleLinkHash[data.result.place_id] = html;
                                             gpids[ix].innerHTML = html;
                                         }
                                     }
@@ -610,42 +611,42 @@
                     }
                 } catch(e) {}
             });
-        },
+        }
 
         /* ****** Pull PNH and Userlist data ****** */
-        loadPnhSpreadsheets: function() {
+        static loadPnhSpreadsheets() {
             setTimeout(function() {
                 // Pull USA PNH Data
                 setTimeout(function() {
-                    COMMON.callAjax('https://spreadsheets.google.com/feeds/list/1-f-JTWY5UnBx-rFTa4qhyGMYdHBZWNirUTOgn222zMY/o6q7kx/public/values',function(response) {
+                    _app.callAjax('https://spreadsheets.google.com/feeds/list/1-f-JTWY5UnBx-rFTa4qhyGMYdHBZWNirUTOgn222zMY/o6q7kx/public/values',function(response) {
                         USA_PNH_DATA = [];
                         for (let i = 0; i < response.feed.entry.length; i++) USA_PNH_DATA.push(response.feed.entry[i].gsx$pnhdata.$t);
                     });
                 }, 0);
                 // Pull Category Data ( Includes CAN for now )
                 setTimeout(function() {
-                    COMMON.callAjax('https://spreadsheets.google.com/feeds/list/1-f-JTWY5UnBx-rFTa4qhyGMYdHBZWNirUTOgn222zMY/ov3dubz/public/values',function(response) {
+                    _app.callAjax('https://spreadsheets.google.com/feeds/list/1-f-JTWY5UnBx-rFTa4qhyGMYdHBZWNirUTOgn222zMY/ov3dubz/public/values',function(response) {
                         USA_CH_DATA = [];
                         for (let i = 0; i < response.feed.entry.length; i++) USA_CH_DATA.push(response.feed.entry[i].gsx$pcdata.$t);
                     });
                 }, 20);
                 // Pull State-based Data (includes CAN for now)
                 setTimeout(function() {
-                    COMMON.callAjax('https://spreadsheets.google.com/feeds/list/1-f-JTWY5UnBx-rFTa4qhyGMYdHBZWNirUTOgn222zMY/os2g2ln/public/values',function(response) {
+                    _app.callAjax('https://spreadsheets.google.com/feeds/list/1-f-JTWY5UnBx-rFTa4qhyGMYdHBZWNirUTOgn222zMY/os2g2ln/public/values',function(response) {
                         USA_STATE_DATA = [];
                         for (let i = 0; i < response.feed.entry.length; i++) USA_STATE_DATA.push(response.feed.entry[i].gsx$psdata.$t);
                     });
                 }, 40);
                 // Pull CAN PNH Data
                 setTimeout(function() {
-                    COMMON.callAjax('https://spreadsheets.google.com/feeds/list/1TIxQZVLUbAJ8iH6LPTkJsvqFb_DstrHpKsJbv1W1FZs/o4ghhas/public/values',function(response) {
+                    _app.callAjax('https://spreadsheets.google.com/feeds/list/1TIxQZVLUbAJ8iH6LPTkJsvqFb_DstrHpKsJbv1W1FZs/o4ghhas/public/values',function(response) {
                         CAN_PNH_DATA = [];
                         for (let i = 0; i < response.feed.entry.length; i++) CAN_PNH_DATA.push(response.feed.entry[i].gsx$pnhdata.$t);
                     });
                 }, 60);
                 // Pull name-category lists
                 setTimeout(function() {
-                    COMMON.callAjax('https://spreadsheets.google.com/feeds/list/1pDmenZA-3FOTvhlCq9yz1dnemTmS9l_njZQbu_jLVMI/op17piq/public/values',function(response) {
+                    _app.callAjax('https://spreadsheets.google.com/feeds/list/1pDmenZA-3FOTvhlCq9yz1dnemTmS9l_njZQbu_jLVMI/op17piq/public/values',function(response) {
                         hospitalPartMatch = response.feed.entry[0].gsx$hmchp.$t;
                         hospitalFullMatch = response.feed.entry[0].gsx$hmchf.$t;
                         animalPartMatch = response.feed.entry[0].gsx$hmcap.$t;
@@ -662,7 +663,7 @@
                 }, 80);
                 // Pull dev and beta UserList Data
                 setTimeout(function() {
-                    COMMON.callAjax('https://spreadsheets.google.com/feeds/list/1L82mM8Xg-MvKqK3WOfsMhFEGmVM46lA8BVcx8qwgmA8/ofblgob/public/values',function(response) {
+                    _app.callAjax('https://spreadsheets.google.com/feeds/list/1L82mM8Xg-MvKqK3WOfsMhFEGmVM46lA8BVcx8qwgmA8/ofblgob/public/values',function(response) {
                         let WMEPHuserList = response.feed.entry[0].gsx$phuserlist.$t;
                         WMEPHuserList = WMEPHuserList.split("|");
                         let betaix = WMEPHuserList.indexOf('BETAUSERS');
@@ -673,16 +674,16 @@
                     });
                 }, 100);
             }, BETA_DATA_DELAY);
-        },
+        }
 
-        checkDataReady: function(callCount) {
+        static checkDataReady(callCount) {
             callCount = callCount || 1;
             // If the data has returned, then start the script, otherwise wait a bit longer
             if ("undefined" !== typeof CAN_PNH_DATA && "undefined" !== typeof USA_PNH_DATA && "undefined" !== typeof USA_CH_DATA &&
                 "undefined" !== typeof WMEPHdevList && "undefined" !== typeof WMEPHbetaList && "undefined" !== typeof hospitalPartMatch ) {
-                USA_PNH_NAMES = COMMON.makeNameCheckList(USA_PNH_DATA);
-                USA_CH_NAMES = COMMON.makeCatCheckList(USA_CH_DATA);
-                CAN_PNH_NAMES = COMMON.makeNameCheckList(CAN_PNH_DATA);
+                USA_PNH_NAMES = _app.makeNameCheckList(USA_PNH_DATA);
+                USA_CH_NAMES = _app.makeCatCheckList(USA_CH_DATA);
+                CAN_PNH_NAMES = _app.makeNameCheckList(CAN_PNH_DATA);
                 // CAN using USA_CH_NAMES at the moment
                 runPH();  // ) start the main code
             } else {
@@ -709,9 +710,9 @@
                     phlog("Data load took too long, reload WME...");
                 }
             }
-        },
+        }
 
-        addPURWebSearchButton: function() {
+        static addPURWebSearchButton() {
             let purLayerObserver = new MutationObserver(panelContainerChanged);
             purLayerObserver.observe($('#map #panel-container')[0],{childList: true, subtree: true});
 
@@ -760,10 +761,10 @@
                     window.open(buildSearchUrl(newName,addr), searchResultsWindowName, searchResultsWindowSpecs);
                 }
             }
-        },
+        }
 
         //  Whitelist an item
-        whitelistAction: function(itemID, wlKeyName) {
+        static whitelistAction(itemID, wlKeyName) {
             let item = W.selectionManager.selectedItems[0].model;
             let addressTemp = item.getAddress();
             if ( addressTemp.hasOwnProperty('attributes') ) {
@@ -781,19 +782,19 @@
             this.saveWL_LS(true);  // Save the WL to local storage
             this.WMEPH_WLCounter();
             bannButt2.clearWL.active = true;
-        },
+        }
 
         // Keep track of how many whitelists have been added since the last pull, alert if over a threshold (100?)
-        WMEPH_WLCounter: function() {
+        static WMEPH_WLCounter() {
             localStorage.WMEPH_WLAddCount = parseInt(localStorage.WMEPH_WLAddCount)+1;
             if (localStorage.WMEPH_WLAddCount > 50) {
                 alert('Don\'t forget to periodically back up your Whitelist data using the Pull option in the WMEPH settings tab.');
                 localStorage.WMEPH_WLAddCount = 2;
             }
-        },
+        }
 
         // Whitelist stringifying and parsing
-        saveWL_LS: function(compress) {
+        static saveWL_LS(compress) {
             venueWhitelistStr = JSON.stringify(venueWhitelist);
             if (compress) {
                 if (venueWhitelistStr.length < 4800000 ) {  // Also save to regular storage as a back up
@@ -804,8 +805,8 @@
             } else {
                 localStorage.setItem(WL_LOCAL_STORE_NAME, venueWhitelistStr);
             }
-        },
-        loadWL_LS: function(decompress) {
+        }
+        static loadWL_LS(decompress) {
             if (decompress) {
                 venueWhitelistStr = localStorage.getItem(WL_LOCAL_STORE_NAME_COMPRESSED);
                 venueWhitelistStr = LZString.decompressFromUTF16(venueWhitelistStr);
@@ -813,8 +814,8 @@
                 venueWhitelistStr = localStorage.getItem(WL_LOCAL_STORE_NAME);
             }
             venueWhitelist = JSON.parse(venueWhitelistStr);
-        },
-        backupWL_LS: function(compress) {
+        }
+        static backupWL_LS(compress) {
             venueWhitelistStr = JSON.stringify(venueWhitelist);
             if (compress) {
                 venueWhitelistStr = LZString.compressToUTF16(venueWhitelistStr);
@@ -1218,7 +1219,7 @@
                     hoursObjectArrayMinDay.push( (((hoursObjectAdd.days[0]+6)%7)+1) * 100 + parseInt(toFromSplit[1][0])*10 + parseInt(toFromSplit[1][1]) );
                 }
             }
-            COMMON.sortWithIndex(hoursObjectArrayMinDay);
+            _app.sortWithIndex(hoursObjectArrayMinDay);
             for (let hoaix=0; hoaix < hoursObjectArrayMinDay.length; hoaix++) {
                 hoursObjectArraySorted.push(hoursObjectArray[hoursObjectArrayMinDay.sortIndices[hoaix]]);
             }
@@ -1277,6 +1278,8 @@
             return false;
         }
     }
+    
+    const _app = new App();
 
     function runPH() {
         // Script update info
@@ -1294,22 +1297,22 @@
         let UpdateObject = require("Waze/Action/UpdateObject");
         let _disableHighlightTest = false;  // Set to true to temporarily disable highlight checks immediately when venues change.
 
-        COMMON.modifyGoogleLinks();
+        _app.modifyGoogleLinks();
 
         // Whitelist initialization
         if ( validateWLS( LZString.decompressFromUTF16(localStorage.getItem(WL_LOCAL_STORE_NAME_COMPRESSED)) ) === false ) {  // If no compressed WL string exists
             if ( validateWLS(localStorage.getItem(WL_LOCAL_STORE_NAME)) === false ) {  // If no regular WL exists
                 venueWhitelist = { '1.1.1': { Placeholder: {  } } }; // Populate with a dummy place
-                COMMON.saveWL_LS(false);
-                COMMON.saveWL_LS(true);
+                _app.saveWL_LS(false);
+                _app.saveWL_LS(true);
             } else {  // if regular WL string exists, then transfer to compressed version
                 localStorage.setItem('WMEPH-OneTimeWLBU', localStorage.getItem(WL_LOCAL_STORE_NAME));
-                COMMON.loadWL_LS(false);
-                COMMON.saveWL_LS(true);
+                _app.loadWL_LS(false);
+                _app.saveWL_LS(true);
                 alert('Whitelists are being converted to a compressed format.  If you have trouble with your WL, please submit an error report.');
             }
         } else {
-            COMMON.loadWL_LS(true);
+            _app.loadWL_LS(true);
         }
 
         if (W.loginManager.user.userName === 'ggrane') {
@@ -1363,12 +1366,12 @@
 
         // Event listeners
         W.selectionManager.events.registerPriority("selectionchanged", null, checkSelection);
-        W.model.venues.on('objectssynced', COMMON.destroyDupeLabels);
+        W.model.venues.on('objectssynced', _app.destroyDupeLabels);
         W.model.venues.on('objectssynced', syncWL);
         W.model.venues.on('objectschanged', onObjectsChanged);
 
         function onObjectsChanged(arg) {
-            COMMON.deleteDupeLabel();
+            _app.deleteDupeLabel();
 
             // This is code to handle updating the banner when changes are made external to the script.
             if ($('#WMEPH_banner').length > 0 && W.selectionManager.hasSelectedItems() && W.selectionManager.selectedItems[0].model.type === 'venue') {
@@ -1394,7 +1397,7 @@
             }
         });
         if (removedWLCount > 0) {
-            COMMON.saveWL_LS(true);
+            _app.saveWL_LS(true);
             phlogdev('Removed ' + removedWLCount + ' venues with temporary ID\'s from WL store');
         }
 
@@ -1411,7 +1414,7 @@
                     delete venueWhitelist[oldID];
                 }
             });
-            COMMON.saveWL_LS(true);
+            _app.saveWL_LS(true);
         }
 
         let WMEPHurl = 'https://www.waze.com/forum/posting.php?mode=reply&f=819&t=215657';  // WMEPH Forum thread URL
@@ -1919,7 +1922,7 @@
                     // WLactive: false, WLmessage: '', WLtitle: 'Whitelist missing name',
                     // WLaction: function() {
                     //     wlKeyName = 'plaNameMissing';
-                    //     COMMON.whitelistAction(itemID, wlKeyName);
+                    //     _app.whitelistAction(itemID, wlKeyName);
                     //     harmonizePlaceGo(item, 'harmonize');
                     // }
                 },
@@ -1933,7 +1936,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist unmapped category',
                     WLaction: function() {
                         wlKeyName = 'unmappedRegion';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -1943,7 +1946,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist rest area name',
                     WLaction: function() {
                         wlKeyName = 'restAreaName';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -1981,7 +1984,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist place',
                     WLaction: function() {
                         wlKeyName = 'restAreaSpec';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2004,7 +2007,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist gas brand mismatch',
                     WLaction: function() {
                         wlKeyName = 'gasMismatch';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2040,7 +2043,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist hotel as secondary category',
                     WLaction: function() {
                         wlKeyName = 'hotelMkPrim';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2063,7 +2066,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist PetVet category',
                     WLaction: function() {
                         wlKeyName = 'changeHMC2PetVet';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2082,7 +2085,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist School category',
                     WLaction: function() {
                         wlKeyName = 'changeSchool2Offices';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2103,7 +2106,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist point (not area)',
                     WLaction: function() {
                         wlKeyName = 'pointNotArea';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2118,7 +2121,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist area (not point)',
                     WLaction: function() {
                         wlKeyName = 'areaNotPoint';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2146,7 +2149,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist empty HN',
                     WLaction: function() {
                         wlKeyName = 'HNWL';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2156,7 +2159,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist non-standard HN',
                     WLaction: function() {
                         wlKeyName = 'hnNonStandard';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2166,7 +2169,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist HN range',
                     WLaction: function() {
                         wlKeyName = 'HNRange';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2270,7 +2273,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist parent Category',
                     WLaction: function() {
                         wlKeyName = 'parentCategory';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2288,7 +2291,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist description',
                     WLaction: function() {
                         wlKeyName = 'suspectDesc';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2298,7 +2301,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist Residential-type name',
                     WLaction: function() {
                         wlKeyName = 'resiTypeName';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2316,7 +2319,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist area (not point)',
                     WLaction: function() {
                         wlKeyName = 'areaNotPoint';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2326,7 +2329,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist point (not area)',
                     WLaction: function() {
                         wlKeyName = 'pointNotArea';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2353,7 +2356,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist existing URL',
                     WLaction: function() {
                         wlKeyName = 'longURL';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2363,7 +2366,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist no gas brand',
                     WLaction: function() {
                         wlKeyName = 'gasNoBrand';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2373,7 +2376,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist no gas brand',
                     WLaction: function() {
                         wlKeyName = 'subFuel';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2383,7 +2386,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist area (not point)',
                     WLaction: function() {
                         wlKeyName = 'areaNotPoint';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2393,7 +2396,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist point (not area)',
                     WLaction: function() {
                         wlKeyName = 'pointNotArea';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2407,7 +2410,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist hotel localization',
                     WLaction: function() {
                         wlKeyName = 'hotelLocWL';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2417,7 +2420,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist localization',
                     WLaction: function() {
                         wlKeyName = 'localizedName';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2448,7 +2451,7 @@
                     WLactive: false, WLmessage: '', WLtitle: 'Whitelist category',
                     WLaction: function() {
                         wlKeyName = 'changetoHospitalUrgentCare';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2474,7 +2477,7 @@
                     WLactive: false, WLmessage: '', WLtitle: 'Whitelist category',
                     WLaction: function() {
                         wlKeyName = 'changeToDoctorClinic';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2503,7 +2506,7 @@
                     // WLactive:true, WLmessage:'', //WLtitle:'Whitelist missing Google place link',
                     // WLaction: function() {
                     //     wlKeyName = 'extProviderMissing';
-                    //     COMMON.whitelistAction(itemID, wlKeyName);
+                    //     _app.whitelistAction(itemID, wlKeyName);
                     // }
                 },
 
@@ -2528,7 +2531,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist empty URL',
                     WLaction: function() {
                         wlKeyName = 'urlWL';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2565,7 +2568,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist empty phone',
                     WLaction: function() {
                         wlKeyName = 'phoneWL';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2575,7 +2578,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist the area code',
                     WLaction: function() {
                         wlKeyName = 'aCodeWL';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2720,7 +2723,7 @@
                     WLactive: true, WLmessage: '', WLtitle: 'Whitelist no Hours',
                     WLaction: function() {
                         wlKeyName = 'noHours';
-                        COMMON.whitelistAction(itemID, wlKeyName);
+                        _app.whitelistAction(itemID, wlKeyName);
                         harmonizePlaceGo(item, 'harmonize');
                     }
                 },
@@ -2859,7 +2862,7 @@
                 STC: {    // no WL
                     active: false, severity: 0, message: "Force Title Case: ", value: "Yes", title: "Force Title Case to InterNal CaPs",
                     action: function() {
-                        newName = COMMON.toTitleCaseStrong(item.attributes.name);  // Get the Strong Title Case name
+                        newName = _app.toTitleCaseStrong(item.attributes.name);  // Get the Strong Title Case name
                         if (newName !== item.attributes.name) {  // if they are not equal
                             W.model.actionManager.add(new UpdateObject(item, { name: newName }));
                             fieldUpdateObject.name='#dfd';
@@ -2982,7 +2985,7 @@
                     action: function() {
                         if (confirm('Are you sure you want to clear all whitelisted fields for this place?') ) {  // misclick check
                             delete venueWhitelist[itemID];
-                            COMMON.saveWL_LS(true);
+                            _app.saveWL_LS(true);
                             harmonizePlaceGo(item,'harmonize');  // rerun the script to check all flags again
                         }
                     }
@@ -3025,7 +3028,7 @@
                 addValet: {  // append optional Alias to the name
                     active: false, checked: false, icon: "serv-valet", w2hratio: 50/50, value: "Valet", title: 'Valet', servIDIndex: 0,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3038,7 +3041,7 @@
                 addDriveThru: {  // append optional Alias to the name
                     active: false, checked: false, icon: "serv-drivethru", w2hratio: 78/50, value: "DriveThru", title: 'Drive-Thru', servIDIndex: 1,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3051,7 +3054,7 @@
                 addWiFi: {  // append optional Alias to the name
                     active: false, checked: false, icon: "serv-wifi", w2hratio: 67/50, value: "WiFi", title: 'WiFi', servIDIndex: 2,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3064,7 +3067,7 @@
                 addRestrooms: {  // append optional Alias to the name
                     active: false, checked: false, icon: "serv-restrooms", w2hratio: 49/50, value: "Restroom", title: 'Restrooms', servIDIndex: 3,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3077,7 +3080,7 @@
                 addCreditCards: {  // append optional Alias to the name
                     active: false, checked: false, icon: "serv-credit", w2hratio: 73/50, value: "CC", title: 'Credit Cards', servIDIndex: 4,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3090,7 +3093,7 @@
                 addReservations: {  // append optional Alias to the name
                     active: false, checked: false, icon: "serv-reservations", w2hratio: 55/50, value: "Reserve", title: 'Reservations', servIDIndex: 5,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3103,7 +3106,7 @@
                 addOutside: {  // append optional Alias to the name
                     active: false, checked: false, icon: "serv-outdoor", w2hratio: 73/50, value: "OusideSeat", title: 'Outside Seating', servIDIndex: 6,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3116,7 +3119,7 @@
                 addAC: {  // append optional Alias to the name
                     active: false, checked: false, icon: "serv-ac", w2hratio: 50/50, value: "AC", title: 'AC', servIDIndex: 7,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3129,7 +3132,7 @@
                 addParking: {  // append optional Alias to the name
                     active: false, checked: false, icon: "serv-parking", w2hratio: 46/50, value: "Parking", title: 'Parking', servIDIndex: 8,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3142,7 +3145,7 @@
                 addDeliveries: {  // append optional Alias to the name
                     active: false, checked: false, icon: "serv-deliveries", w2hratio: 86/50, value: "Delivery", title: 'Deliveries', servIDIndex: 9,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3155,7 +3158,7 @@
                 addTakeAway: {  // append optional Alias to the name
                     active: false, checked: false, icon: "serv-takeaway", w2hratio: 34/50, value: "TakeOut", title: 'Take Out', servIDIndex: 10,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3168,7 +3171,7 @@
                 addWheelchair: {  // add service
                     active: false, checked: false, icon: "serv-wheelchair", w2hratio: 50/50, value: "WhCh", title: 'Wheelchair Accessible', servIDIndex: 11,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3181,7 +3184,7 @@
                 addDisabilityParking: {
                     active: false, checked: false, icon: "serv-wheelchair", w2hratio: 50/50, value: "DisabilityParking", title: 'Disability Parking', servIDIndex: 12,
                     action: function(actions, checked) {
-                        COMMON.setServiceChecked(this, checked, actions);
+                        _app.setServiceChecked(this, checked, actions);
                     },
                     pnhOverride: false,
                     actionOn: function(actions) {
@@ -3195,7 +3198,7 @@
                     active: false, checked: false, icon: "serv-247", w2hratio: 73/50, value: "247", title: 'Hours: Open 24\/7',
                     action: function(actions) {
                         if (!bannServ.add247.checked) {
-                            COMMON.addUpdateAction({ openingHours: [{days: [1,2,3,4,5,6,0], fromHour: "00:00", toHour: "00:00"}] }, actions);
+                            _app.addUpdateAction({ openingHours: [{days: [1,2,3,4,5,6,0], fromHour: "00:00", toHour: "00:00"}] }, actions);
                             fieldUpdateObject.openingHours='#dfd';
                             highlightChangedFields(fieldUpdateObject,hpMode);
                             bannServ.add247.checked = true;
@@ -3232,12 +3235,12 @@
             let categories = item.attributes.categories;
             newCategories = categories.slice(0);
             newName = item.attributes.name;
-            newName = COMMON.toTitleCase(newName);
+            newName = _app.toTitleCase(newName);
             // let nameShort = newName.replace(/[^A-Za-z]/g, '');  // strip non-letters for PNH name searching
             // let nameNumShort = newName.replace(/[^A-Za-z0-9]/g, ''); // strip non-letters/non-numbers for PNH name searching
             newAliases = item.attributes.aliases.slice(0);
             for (let naix=0; naix<newAliases.length; naix++) {
-                newAliases[naix] = COMMON.toTitleCase(newAliases[naix]);
+                newAliases[naix] = _app.toTitleCase(newAliases[naix]);
             }
             let inferredAddress;
             let brand = item.attributes.brand;
@@ -4012,7 +4015,7 @@
                         bannButt.addAlias.title = 'Add ' + optionalAlias;
                     }
                     // update categories if different and no Cat2 option
-                    if ( !matchSets( COMMON.uniq(item.attributes.categories),COMMON.uniq(newCategories) ) ) {
+                    if ( !matchSets( _app.uniq(item.attributes.categories),_app.uniq(newCategories) ) ) {
                         if ( specCases.indexOf('optionCat2') === -1 && specCases.indexOf('buttOn_addCat2') === -1 ) {
                             phlogdev("Categories updated" + " with " + newCategories);
                             actions.push(new UpdateObject(item, { categories: newCategories }));
@@ -4060,7 +4063,7 @@
                     }
 
                     // Strong title case option for non-PNH places
-                    if (newName !== COMMON.toTitleCaseStrong(newName)) {
+                    if (newName !== _app.toTitleCaseStrong(newName)) {
                         bannButt.STC.active = true;
                     }
 
@@ -4135,7 +4138,7 @@
                 // Update aliases
                 newAliases = removeSFAliases(newName, newAliases);
                 for (let naix=0; naix<newAliases.length; naix++) {
-                    newAliases[naix] = COMMON.toTitleCase(newAliases[naix]);
+                    newAliases[naix] = _app.toTitleCase(newAliases[naix]);
                 }
                 if (hpMode.harmFlag && newAliases !== item.attributes.aliases && newAliases.length !== item.attributes.aliases.length) {
                     phlogdev("Alt Names updated");
@@ -5109,7 +5112,7 @@
                                         venueWhitelist[itemID][wlKeyName] = [];
                                     }
                                     venueWhitelist[itemID].dupeWL.push(dID);  // WL the id for the duplicate venue
-                                    venueWhitelist[itemID].dupeWL = COMMON.uniq(venueWhitelist[itemID].dupeWL);
+                                    venueWhitelist[itemID].dupeWL = _app.uniq(venueWhitelist[itemID].dupeWL);
                                     // Make an entry for the opposite item
                                     if (!venueWhitelist.hasOwnProperty(dID)) {  // If venue is NOT on WL, then add it.
                                         venueWhitelist[dID] = { dupeWL: [] };
@@ -5118,9 +5121,9 @@
                                         venueWhitelist[dID][wlKeyName] = [];
                                     }
                                     venueWhitelist[dID].dupeWL.push(itemID);  // WL the id for the duplicate venue
-                                    venueWhitelist[dID].dupeWL = COMMON.uniq(venueWhitelist[dID].dupeWL);
-                                    COMMON.saveWL_LS(true);  // Save the WL to local storage
-                                    COMMON.WMEPH_WLCounter();
+                                    venueWhitelist[dID].dupeWL = _app.uniq(venueWhitelist[dID].dupeWL);
+                                    _app.saveWL_LS(true);  // Save the WL to local storage
+                                    _app.WMEPH_WLCounter();
                                     bannButt2.clearWL.active = true;
                                     bannDupl[dID].active = false;
                                     harmonizePlaceGo(item,'harmonize');
@@ -5139,7 +5142,7 @@
             // Check HN range (this depends on the returned dupefinder data, so has to run after it)
             if (dupeHNRangeList.length > 3) {
                 let dhnix, dupeHNRangeListSorted = [];
-                COMMON.sortWithIndex(dupeHNRangeDistList);
+                _app.sortWithIndex(dupeHNRangeDistList);
                 for (let dhnix = 0; dhnix < dupeHNRangeList.length; dhnix++) {
                     dupeHNRangeListSorted.push(dupeHNRangeList[ dupeHNRangeDistList.sortIndices[dhnix] ]);
                 }
@@ -5149,7 +5152,7 @@
                 for (let dhnix = 0; dhnix < dupeHNRangeListSorted.length; dhnix++) {
                     arrayHNRatio.push(Math.abs( (parseInt(item.attributes.houseNumber) - dupeHNRangeListSorted[dhnix]) / dupeHNRangeDistList[dhnix] ));
                 }
-                COMMON.sortWithIndex(arrayHNRatio);
+                _app.sortWithIndex(arrayHNRatio);
                 // Examine either the median or the 8th index if length is >16
                 let arrayHNRatioCheckIX = Math.min(Math.round(arrayHNRatio.length/2), 8);
                 if (arrayHNRatio[arrayHNRatioCheckIX] > 1.4) {
@@ -5702,7 +5705,7 @@
             ".btn.wmephwl-btn {padding: 0px 1px}"
         ];
         for (let cssix=0; cssix<cssCode.length; cssix++) {
-            COMMON.insertCss(cssCode[cssix]);
+            _app.insertCss(cssCode[cssix]);
         }
 
         // Display run button on place sidebar
@@ -6063,7 +6066,7 @@
                     }
                 }
             }
-            currNameList = COMMON.uniq(currNameList);  //  remove duplicates
+            currNameList = _app.uniq(currNameList);  //  remove duplicates
 
             // Remove any previous search labels and move the layer above the places layer
             WMEPH_NameLayer.destroyFeatures();
@@ -6626,7 +6629,7 @@
                 arrayNew.push.apply(arrayNew, array2);  // add the insert
                 arrayNew.push.apply(arrayNew, arrayTemp);  // add the tail end of original
             }
-            return COMMON.uniq(arrayNew);  // remove any duplicates (so the function can be used to move the position of a string)
+            return _app.uniq(arrayNew);  // remove any duplicates (so the function can be used to move the position of a string)
         }
 
         // Function to remove unnecessary aliases
@@ -6856,14 +6859,14 @@
                 if ($('#WMEPH-WLInput'+DEV_VERS_STR).val() === 'resetWhitelist') {
                     if (confirm('***Do you want to reset all Whitelist data?\nClick OK to erase.') ) {  // if the category doesn't translate, then pop an alert that will make a forum post to the thread
                         venueWhitelist = { '1.1.1': { Placeholder: {  } } }; // Populate with a dummy place
-                        COMMON.saveWL_LS(true);
+                        _app.saveWL_LS(true);
                     }
                 } else {  // try to merge uncompressed WL data
                     WLSToMerge = validateWLS($('#WMEPH-WLInput'+DEV_VERS_STR).val());
                     if (WLSToMerge) {
                         phlog('Whitelists merged!');
                         venueWhitelist = mergeWL(venueWhitelist,WLSToMerge);
-                        COMMON.saveWL_LS(true);
+                        _app.saveWL_LS(true);
                         phWLContentHtml = '<p style="color:green">Whitelist data merged<p>';
                         $("#PlaceHarmonizerWLToolsMsg" + DEV_VERS_STR).append(phWLContentHtml);
                         $('#WMEPH-WLInputBeta').val('');
@@ -6872,7 +6875,7 @@
                         if (WLSToMerge) {
                             phlog('Whitelists merged!');
                             venueWhitelist = mergeWL(venueWhitelist,WLSToMerge);
-                            COMMON.saveWL_LS(true);
+                            _app.saveWL_LS(true);
                             phWLContentHtml = '<p style="color:green">Whitelist data merged<p>';
                             $("#PlaceHarmonizerWLToolsMsg" + DEV_VERS_STR).append(phWLContentHtml);
                             $('#WMEPH-WLInputBeta').val('');
@@ -6978,12 +6981,12 @@
                     if (venueToRemove.length > 0) {
                         if (localStorage.WMEPH_WLAddCount === '1') {
                             if (confirm('Are you sure you want to clear all whitelist data for '+stateToRemove+'? This CANNOT be undone. Press OK to delete, cancel to preserve the data.') ) {  // misclick check
-                                COMMON.backupWL_LS(true);
+                                _app.backupWL_LS(true);
                                 for (let ixwl=0; ixwl<venueToRemove.length; ixwl++) {
                                     delete venueWhitelist[venueToRemove[ixwl]];
                                     //phlogdev(venueWhitelist[venueToRemove[ixwl]]);
                                 }
-                                COMMON.saveWL_LS(true);
+                                _app.saveWL_LS(true);
                                 phWLContentHtml = '<p style="color:green">'+venueToRemove.length+' items removed from WL<p>';
                                 $("#PlaceHarmonizerWLToolsMsg" + DEV_VERS_STR).append(phWLContentHtml);
                                 $('#WMEPH-WLInputBeta').val('');
@@ -7585,12 +7588,12 @@
 
     function placeHarmonizer_bootstrap() {
         if ( W && W.loginManager && W.loginManager.isLoggedIn() && W.map) {
-            COMMON.checkDataReady();  //  Run the code to check for data return from the Sheets
+            _app.checkDataReady();  //  Run the code to check for data return from the Sheets
 
             // Add handler to create PUR Web Search button.
-            COMMON.addPURWebSearchButton();
+            _app.addPURWebSearchButton();
 
-            cssServButts.map(css => COMMON.insertCss(css));
+            cssServButts.map(css => _app.insertCss(css));
 
             // Create duplicatePlaceName layer
             let rlayers = W.map.getLayersBy("uniqueName","__DuplicatePlaceNames");
@@ -7613,7 +7616,7 @@
     }
 
     // Run the script...
-    COMMON.loadPnhSpreadsheets();
+    _app.loadPnhSpreadsheets();
     placeHarmonizer_bootstrap();
 
 
