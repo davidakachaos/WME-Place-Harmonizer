@@ -4642,10 +4642,13 @@
                 let hnOK = false, updateHNflag = false;
                 let hnTemp = currentHN.replace(/[^\d]/g, '');  // Digits only
                 let hnTempDash = currentHN.replace(/[^\d-]/g, '');  // Digits and dashes only
-                if ( hnTemp < 1000000 && state2L === "NY" && addr.city.attributes.name === 'Queens' && hnTempDash.match(/^\d{1,4}-\d{1,4}$/g) !== null ) {
-                    updateHNflag = true;
-                    hnOK = true;
-                }
+                
+                // 2017-06-19 (mapomatic) This was removing the dash from all non-RPP places in Queens.  According to PZ, probably due to some search issue in the app.
+                // However, place searches don't use the address so this isn't needed.
+                // if ( hnTemp < 1000000 && state2L === "NY" && addr.city.attributes.name === 'Queens' && hnTempDash.match(/^\d{1,4}-\d{1,4}$/g) !== null ) {
+                //     updateHNflag = true;
+                //     hnOK = true;
+                // }
                 if (hnTemp === currentHN && hnTemp < 1000000) {  //  general check that HN is 6 digits or less, & that it is only [0-9]
                     hnOK = true;
                 }
