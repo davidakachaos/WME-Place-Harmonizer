@@ -1,13 +1,14 @@
 /* eslint-disable nonblock-statement-body-position, brace-style, curly, radix, no-template-curly-in-string */
 // ==UserScript==
-// @name        WME Place Harmonizer
+// @name        WME Place Harmonizer Beta (DEV)
 // @namespace   WazeUSA
 // @version     2020.10.20.001
 // @description Harmonizes, formats, and locks a selected place
 // @author      WMEPH Development Group
 // @include     /^https:\/\/(www|beta)\.waze\.com\/(?!user\/)(.{2,6}\/)?editor\/?.*$/
 // @require     https://greasyfork.org/scripts/24851-wazewrap/code/WazeWrap.js
-// @require     https://greasyfork.org/scripts/37486-wme-utils-hoursparser/code/WME%20Utils%20-%20HoursParser.js
+// @require     // @require https://greasyfork.org/scripts/414764-wme-utils-hoursparser-international/code/WME%20Utils%20-%20HoursParser%20International.js?version=862858
+// @require     https://unpkg.com/libphonenumber-js@^1.8.5/bundle/libphonenumber-min.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js
 // @license     GNU GPL v3
 // @grant       GM_addStyle
@@ -31,9 +32,10 @@
 /* global performance */
 /* global atob */
 /* global require */
+/* global PhoneNumberUtil */
 
 // Script update info
-
+//https://greasyfork.org/scripts/37486-wme-utils-hoursparser/code/WME%20Utils%20-%20HoursParser.js
 // BE SURE TO SET THIS TO NULL OR AN EMPTY STRING WHEN RELEASING A NEW UPDATE.
 const _SCRIPT_UPDATE_MESSAGE = '';
 
@@ -1076,7 +1078,8 @@ function appendServiceButtonIconCss() {
 
 // Function that checks current place against the Harmonization Data.  Returns place data or "NoMatch"
 function harmoList(itemName, state2L, region3L, country, itemCats, item, placePL) {
-    if (country !== 'USA' && country !== 'CAN') {
+    if (!(country in _PNH_DATA)) {
+    // if (country !== 'USA' && country !== 'CAN') {
         WazeWrap.Alerts.info(_SCRIPT_NAME, 'No PNH data exists for this country.');
         return ['NoMatch'];
     }
@@ -1099,7 +1102,7 @@ function harmoList(itemName, state2L, region3L, country, itemCats, item, placePL
     itemName = itemName.toUpperCase().replace(/ AND /g, ' ').replace(/^THE /g, '');
     const itemNameSpace = ` ${itemName.replace(/[^A-Z0-9 ]/g, ' ').replace(/ {2,}/g, ' ')} `;
     itemName = itemName.replace(/[^A-Z0-9]/g, ''); // Clear all non-letter and non-number characters ( HOLLYIVY PUB #23 -- > HOLLYIVYPUB23 )
-
+    phlog("Item name: " + itemName);
     // for each place on the PNH list (skipping headers at index 0)
     for (let pnhIdx = 1, len = pnhNames.length; pnhIdx < len; pnhIdx++) {
         let PNHStringMatch = false;
@@ -1706,29 +1709,36 @@ function normalizePhone(s, outputFormat, returnType, item, region) {
         _buttonBanner.phoneMissing = Flag.PhoneMissing.eval(item, _wl, region, outputFormat);
         return s;
     }
-    s = s.replace(/(\d{3}.*)\W+(?:extension|ext|xt|x).*/i, '$1');
-    let s1 = s.replace(/\D/g, ''); // remove non-number characters
+    // check venue country
+    let address = item.getAddress();
+    let country = address.attributes.country.abbr;
 
-    // Ignore leading 1, and also don't allow area code or exchange to start with 0 or 1 (***USA/CAN specific)
-    let m = s1.match(/^1?([2-9]\d{2})([2-9]\d{2})(\d{4})$/);
+    if(returnType === 'inputted'){
+        const phonenumber = new libphonenumber.parsePhoneNumberFromString(s, country);
+        if (phonenumber){
+            return phonenumber.format("INTERNATIONAL")
+        }else{
+            return 'badPhone';
+        }
+    }
+    // try the google phonenumber lib
+    const phonenumber = new libphonenumber.parsePhoneNumber(s);
 
-    if (!m) { // then try alphanumeric matching
-        if (s) { s = s.toUpperCase(); }
-        s1 = s.replace(/[^0-9A-Z]/g, '').replace(/^\D*(\d)/, '$1').replace(/^1?([2-9][0-9]{2}[0-9A-Z]{7,10})/g, '$1');
-        s1 = replaceLetters(s1);
-
-        // Ignore leading 1, and also don't allow area code or exchange to start with 0 or 1 (***USA/CAN specific)
-        m = s1.match(/^([2-9]\d{2})([2-9]\d{2})(\d{4})(?:.{0,3})$/);
-
-        if (!m) {
-            if (returnType === 'inputted') {
-                return 'badPhone';
-            }
+    if(!phonenumber.isValid()){
+        // this isn't a phonenumber at all!
+        _buttonBanner.phoneInvalid = new Flag.PhoneInvalid();
+        return s;
+    } else if (phonenumber.country != country){
+        phlog("Phone number not valid for country!");
+        if (returnType === 'inputted') {
+            return 'badPhone';
+        } else {
             _buttonBanner.phoneInvalid = new Flag.PhoneInvalid();
             return s;
         }
     }
-    return phoneFormat(outputFormat, m[1], m[2], m[3]);
+
+    return phonenumber.format("INTERNATIONAL")
 }
 
 // Alphanumeric phone conversion
@@ -4196,15 +4206,19 @@ function harmonizePlaceGo(item, useFlag, actions) {
             _venueWhitelist[itemID].gps = itemGPS; // Store GPS coords for the venue
         }
     }
-
+    // TODO: Make this more flexable for internationalization
+    const usesStates = W.model.states.getObjectArray().length > 1;
     // Country restrictions
-    if (hpMode.harmFlag && (addr.county === null || addr.state === null)) {
+    if (hpMode.harmFlag && (addr.county === null || (usesStates && addr.state === null))) {
         WazeWrap.Alerts.error(_SCRIPT_NAME, 'Country and/or state could not be determined.  Edit the place address and run WMEPH again.');
         return undefined;
     }
     const countryName = addr.country.name;
     const stateName = addr.state.name;
-    if (countryName === 'United States') {
+    if (addr.country.abbr in _PNH_DATA){
+        // All good, we found the data!
+        _countryCode = addr.country.abbr;
+    } else if (countryName === 'United States') {
         _countryCode = 'USA';
     } else if (countryName === 'Canada') {
         _countryCode = 'CAN';
@@ -4225,61 +4239,49 @@ function harmonizePlaceGo(item, useFlag, actions) {
         return 3;
     }
 
+    // Some countries don't use states
     // Parse state-based data
     let state2L = 'Unknown';
     let region = 'Unknown';
     let gFormState = '';
-    for (let usdix = 1; usdix < _PNH_DATA.states.length; usdix++) {
-        _stateDataTemp = _PNH_DATA.states[usdix].split('|');
-        if (stateName === _stateDataTemp[_psStateIx]) {
-            state2L = _stateDataTemp[_psState2LetterIx];
-            region = _stateDataTemp[_psRegionIx];
-            gFormState = _stateDataTemp[_psGoogleFormStateIx];
-            if (_stateDataTemp[_psDefaultLockLevelIx].match(/[1-5]{1}/) !== null) {
-                _defaultLockLevel = _stateDataTemp[_psDefaultLockLevelIx] - 1; // normalize by -1
-            } else if (hpMode.harmFlag) {
-                WazeWrap.Alerts.warning(_SCRIPT_NAME, 'Lock level sheet data is not correct');
-            } else if (hpMode.hlFlag) {
-                return 3;
-            }
-            _areaCodeList = `${_areaCodeList},${_stateDataTemp[_psAreaCodeIx]}`;
-            break;
-        }
-        // If State is not found, then use the country
-        if (countryName === _stateDataTemp[_psStateIx]) {
-            state2L = _stateDataTemp[_psState2LetterIx];
-            region = _stateDataTemp[_psRegionIx];
-            gFormState = _stateDataTemp[_psGoogleFormStateIx];
-            if (_stateDataTemp[_psDefaultLockLevelIx].match(/[1-5]{1}/) !== null) {
-                _defaultLockLevel = _stateDataTemp[_psDefaultLockLevelIx] - 1; // normalize by -1
-            } else if (hpMode.harmFlag) {
-                WazeWrap.Alerts.warning(_SCRIPT_NAME, 'Lock level sheet data is not correct');
-            } else if (hpMode.hlFlag) {
-                return 3;
-            }
-            _areaCodeList = `${_areaCodeList},${_stateDataTemp[_psAreaCodeIx]}`;
-            break;
-        }
-    }
-    if (state2L === 'Unknown' || region === 'Unknown') { // if nothing found:
-        if (hpMode.harmFlag) {
-            /* if (confirm('WMEPH: Localization Error!\nClick OK to report this error')) {
-                // if the category doesn't translate, then pop an alert that will make a forum post to the thread
-                const data = {
-                    subject: 'WMEPH Localization Error report',
-                    message: `Error report: Localization match failed for "${stateName}".`
-                };
-                if (_PNH_DATA.states.length === 0) {
-                    data.message += ' _PNH_DATA.states array is empty.';
-                } else {
-                    data.message += ` state2L = ${_stateDataTemp[_psState2LetterIx]}. region = ${_stateDataTemp[_psRegionIx]}`;
+    
+    if(usesStates){
+        for (let usdix = 1; usdix < _PNH_DATA.states.length; usdix++) {
+            _stateDataTemp = _PNH_DATA.states[usdix].split('|');
+            if (stateName === _stateDataTemp[_psStateIx]) {
+                state2L = _stateDataTemp[_psState2LetterIx];
+                region = _stateDataTemp[_psRegionIx];
+                gFormState = _stateDataTemp[_psGoogleFormStateIx];
+                if (_stateDataTemp[_psDefaultLockLevelIx].match(/[1-5]{1}/) !== null) {
+                    _defaultLockLevel = _stateDataTemp[_psDefaultLockLevelIx] - 1; // normalize by -1
+                } else if (hpMode.harmFlag) {
+                    WazeWrap.Alerts.warning(_SCRIPT_NAME, 'Lock level sheet data is not correct');
+                } else if (hpMode.hlFlag) {
+                    return 3;
                 }
-                reportError(data);
-            } */
-            WazeWrap.Alerts.confirm(
-                _SCRIPT_NAME,
-                'WMEPH: Localization Error!<br>Click OK to report this error',
-                () => {
+                _areaCodeList = `${_areaCodeList},${_stateDataTemp[_psAreaCodeIx]}`;
+                break;
+            }
+            // If State is not found, then use the country
+            if (countryName === _stateDataTemp[_psStateIx]) {
+                state2L = _stateDataTemp[_psState2LetterIx];
+                region = _stateDataTemp[_psRegionIx];
+                gFormState = _stateDataTemp[_psGoogleFormStateIx];
+                if (_stateDataTemp[_psDefaultLockLevelIx].match(/[1-5]{1}/) !== null) {
+                    _defaultLockLevel = _stateDataTemp[_psDefaultLockLevelIx] - 1; // normalize by -1
+                } else if (hpMode.harmFlag) {
+                    WazeWrap.Alerts.warning(_SCRIPT_NAME, 'Lock level sheet data is not correct');
+                } else if (hpMode.hlFlag) {
+                    return 3;
+                }
+                _areaCodeList = `${_areaCodeList},${_stateDataTemp[_psAreaCodeIx]}`;
+                break;
+            }
+        }
+        if (state2L === 'Unknown' || region === 'Unknown') { // if nothing found:
+            if (hpMode.harmFlag) {
+                /* if (confirm('WMEPH: Localization Error!\nClick OK to report this error')) {
+                    // if the category doesn't translate, then pop an alert that will make a forum post to the thread
                     const data = {
                         subject: 'WMEPH Localization Error report',
                         message: `Error report: Localization match failed for "${stateName}".`
@@ -4290,11 +4292,27 @@ function harmonizePlaceGo(item, useFlag, actions) {
                         data.message += ` state2L = ${_stateDataTemp[_psState2LetterIx]}. region = ${_stateDataTemp[_psRegionIx]}`;
                     }
                     reportError(data);
-                },
-                () => { }
-            );
+                } */
+                WazeWrap.Alerts.confirm(
+                    _SCRIPT_NAME,
+                    'WMEPH: Localization Error!<br>Click OK to report this error',
+                    () => {
+                        const data = {
+                            subject: 'WMEPH Localization Error report',
+                            message: `Error report: Localization match failed for "${stateName}".`
+                        };
+                        if (_PNH_DATA.states.length === 0) {
+                            data.message += ' _PNH_DATA.states array is empty.';
+                        } else {
+                            data.message += ` state2L = ${_stateDataTemp[_psState2LetterIx]}. region = ${_stateDataTemp[_psRegionIx]}`;
+                        }
+                        reportError(data);
+                    },
+                    () => { }
+                );
+            }
+            return 3;
         }
-        return 3;
     }
 
     // Gas station treatment (applies to all including PNH)
@@ -6508,11 +6526,14 @@ function showSearchButton() {
             + 'type="button" value="Google">';
         $('#WMEPH_runButton').append(strButt1);
         const btn = document.getElementById('wmephSearch');
+        // check if the country uses states
         if (btn !== null) {
             btn.onclick = () => {
                 const addr = venue.getAddress();
-                if (addr.hasState()) {
-                    const url = buildGLink(venue.attributes.name, addr, venue.attributes.houseNumber);
+                const country = addr.attributes.country;
+                const usesStates = country.model.states.getObjectArray().length > 1;
+                if (usesStates && addr.hasState() || !usesStates) {
+                    const url = buildGLink(venue.attributes.name, addr, venue.attributes.houseNumber, usesStates);
                     if ($('#WMEPH-WebSearchNewTab').prop('checked')) {
                         window.open(url);
                     } else {
@@ -7328,7 +7349,7 @@ function updateAddress(feature, address, actions) {
 } // END updateAddress function
 
 // Build a Google search url based on place name and address
-function buildGLink(searchName, addr, HN) {
+function buildGLink(searchName, addr, HN, usesStates) {
     let searchHN = '';
     let searchStreet = '';
     let searchCity = '';
@@ -7350,11 +7371,15 @@ function buildGLink(searchName, addr, HN) {
     }
     const city = addr.getCity();
     if (city && !city.isEmpty()) {
-        searchCity = `${city.getName()}, `;
+        searchCity = `${city.getName()}`;
     }
-
-    searchName = searchName + (searchName ? ', ' : '') + searchHN + searchStreet
-        + searchCity + addr.getStateName();
+    if(usesStates){
+        searchName = searchName + (searchName ? ', ' : '') + searchHN + searchStreet
+            + searchCity + (searchCity ? ', ' : '') + addr.getStateName();
+    } else {
+        searchName = searchName + (searchName ? ', ' : '') + searchHN + searchStreet
+            + searchCity;
+    }
     return `http://www.google.com/search?q=${encodeURIComponent(searchName)}`;
 }
 
@@ -8348,11 +8373,130 @@ function downloadPnhData(skipBootstrap = false) {
         _schoolPartMatch = processTermsCell(values, 9);
         _schoolFullMatch = processTermsCell(values, 10);
 
-        if (!skipBootstrap)
-            placeHarmonizerBootstrap();
+        downloadInternationalSettings(skipBootstrap);
+
+        // if (!skipBootstrap)
+        //     placeHarmonizerBootstrap();
     }).fail(res => {
         const message = res.responseJSON && res.responseJSON.error ? res.responseJSON.error : 'See response error message above.';
         console.error('WMEPH failed to load spreadsheet:', message);
+    });
+}
+
+function downloadInternationalSettings(skipBootstrap){
+    // Setup international sheets
+    const INT_SHEET_ID = '1loNS4iZvTqGQ3xkynvaoE1JbAEqmy3vBa9gjR20Elps';
+    const INT_RANGE = 'settings!A2:J';
+
+    const dec = s => atob(atob(s));
+    const getSpreadsheetUrl = (id, range, key) => `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${range}?${dec(key)}`;
+
+    // TODO change the _PNH_DATA cache to use an object so we don't have to rely on ugly array index lookups.
+    const processData1 = (data, colIdx) => data.filter(row => row.length >= colIdx + 1).map(row => row[colIdx]);
+
+    // Now we start to load the settings and the sheets per country
+    const internat_sheets = {
+        // NL: {
+        //     id: "1UuwWXVpdpfiTZOe5MWcEAXOTuXK7qfYn5-R1kTxm58w",
+        //     phn_range: 'WMEPH USA Ajax Export!A2:A',
+        //     cat_range: 'WMEPH Cat Ajax Export!A2:A',
+        //     api: '',
+        // }
+    };
+    $.getJSON(getSpreadsheetUrl(INT_SHEET_ID, INT_RANGE, API_KEY)).done(res => {
+        const { values } = res;
+        // Get the country abbr
+        let countryAbbr = processData1(values, 0);
+        let sheet = processData1(values, 1);
+        let phnr = processData1(values, 2);
+        let catr = processData1(values, 3);
+        let hospp = processData1(values, 4);
+        let hospf = processData1(values, 5);
+        let anip = processData1(values, 6);
+        let anif = processData1(values, 7);
+        let schp = processData1(values, 8);
+        let schof = processData1(values, 9);
+        // now fill the sheets object
+        for (var i = countryAbbr.length - 1; i >= 0; i--) {
+            internat_sheets[countryAbbr[i]] = {
+                id: sheet[i],
+                phn_range: phnr[i],
+                cat_range: catr[i],
+                hosp_p: hospp[i],
+                hosp_f: hospf[i],
+                anim_p: anip[i],
+                anim_f: anif[i],
+                scho_p: schp[i],
+                scho_f: schof[i],
+            };
+        }
+        // Done loading sheet settings, now download the data!
+        downloadInternationalPnhData(internat_sheets, skipBootstrap);
+    });
+
+}
+
+function downloadInternationalPnhData(internat_sheets, skipBootstrap) {
+    
+
+    console.log("Loaded international data!");
+    console.log(internat_sheets.NL.id);
+    console.log(internat_sheets.NL.phn_range);
+
+    const dec = s => atob(atob(s));
+    const getSpreadsheetUrl = (id, range, key) => `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${range}?${dec(key)}`;
+
+    // TODO change the _PNH_DATA cache to use an object so we don't have to rely on ugly array index lookups.
+    const processData1 = (data, colIdx) => data.filter(row => row.length >= colIdx + 1).map(row => row[colIdx]);
+
+
+
+    // Loaded the settings for the countries. Now we load the sheets and the country specific settings
+    for( const[country, settings] of Object.entries(internat_sheets)){
+        // create country data
+        _PNH_DATA[country] = {}
+        // Get the PHN Data for this country
+        $.getJSON(getSpreadsheetUrl(settings.id, settings.phn_range, API_KEY)).done(res => {
+            console.log("Loading PHN data for " + country);
+            const { values } = res;
+            if (values[0][0].toLowerCase() === 'obsolete') {
+                WazeWrap.Alerts.error(_SCRIPT_NAME, 'You are using an outdated version of WMEPH that doesn\'t work anymore. Update or disable the script.');
+                return;
+            }
+
+            _PNH_DATA[country].pnh = processData1(values, 0);
+            _PNH_DATA[country].pnhNames = makeNameCheckList(_PNH_DATA[country].pnh);
+        }).fail(res => {
+            const message = res.responseJSON && res.responseJSON.error ? res.responseJSON.error : 'See response error message above.';
+            console.error('WMEPH failed to load spreadsheet:', message);
+        });
+        // Now get the categories
+        $.getJSON(getSpreadsheetUrl(settings.id, settings.cat_range, API_KEY)).done(res => {
+            console.log("Loading Category data for " + country);
+            const { values } = res;
+            if (values[0][0].toLowerCase() === 'obsolete') {
+                WazeWrap.Alerts.error(_SCRIPT_NAME, 'You are using an outdated version of WMEPH that doesn\'t work anymore. Update or disable the script.');
+                return;
+            }
+            _PNH_DATA[country].categories = processData1(values, 0);
+            _PNH_DATA[country].categoryNames = makeCatCheckList(_PNH_DATA[country].categories);
+        }).fail(res => {
+            const message = res.responseJSON && res.responseJSON.error ? res.responseJSON.error : 'See response error message above.';
+            console.error('WMEPH failed to load spreadsheet:', message);
+        });
+    }
+
+    if (!skipBootstrap) {
+        // Wait for all the data for being loaded...
+        waitForDataLoading(internat_sheets);
+        //     placeHarmonizerBootstrap();
+    }
+}
+
+function waitForDataLoading(sheets){
+    // Wait for all AJAX calls to finish -> Loading country data
+    $(document).ajaxStop(function () {
+         placeHarmonizerBootstrap();
     });
 }
 
