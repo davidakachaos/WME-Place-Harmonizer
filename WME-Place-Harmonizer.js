@@ -233,12 +233,12 @@ let _countryCode;
 let _textEntryValues = null; // Store the values entered in text boxes so they can be re-added when the banner is reassembled.
 
 // vars for cat-name checking
-let _hospitalPartMatch;
-let _hospitalFullMatch;
-let _animalPartMatch;
-let _animalFullMatch;
-let _schoolPartMatch;
-let _schoolFullMatch;
+// let _hospitalPartMatch;
+// let _hospitalFullMatch;
+// let _animalPartMatch;
+// let _animalFullMatch;
+// let _schoolPartMatch;
+// let _schoolFullMatch;
 
 // Userlists
 let _wmephDevList;
@@ -1868,6 +1868,37 @@ function normalizeURL(s, lc, skipBannerActivate, venue, region) {
     return s;
 } // END normalizeURL function
 
+function Country() {
+    const venue = getSelectedVenue();
+    if (venue){
+        const addrs = venue.getAddress();
+        if(addrs.attributes.country){
+            addrs.attributes.country.abbr;
+        }else{
+            phlog("No address set for venue");
+            return W.model.topCountry.abbr;    
+        }
+    } else {
+        return W.model.topCountry.abbr;
+    }
+}
+
+function usesStates(){
+    const venue = getSelectedVenue();
+    if (venue){
+        const addrs = venue.getAddress();
+        if(addrs.attributes.country){
+            return addrs.attributes.country.model.topState.id !== 1;
+        }else{
+            return
+        }
+        // When the topState id is 1, there are no states in the country!
+        return venue.getAddress().attributes.country.model.topState.id === 1;
+    } else {
+        return W.model.topState.countryID !== 0;
+    }
+}
+
 // Only run the harmonization if a venue is selected
 function harmonizePlace() {
     // Beta version for approved users only
@@ -1956,8 +1987,8 @@ let Flag = {
                 } else {
                     let inferredAddress = inferAddress(7); // Pull address info from nearby segments
                     if (inferredAddress && inferredAddress.attributes) inferredAddress = inferredAddress.attributes;
-
-                    if (inferredAddress && inferredAddress.state && inferredAddress.country) {
+                    // Use the state when needed
+                    if (inferredAddress && (usesStates() && inferredAddress.state || !usesStates()) && inferredAddress.country) {
                         if ($('#WMEPH-AddAddresses').prop('checked')) { // update the item's address if option is enabled
                             updateAddress(venue, inferredAddress, actions);
                             result.inferredAddress = inferredAddress;
@@ -2220,7 +2251,7 @@ let Flag = {
             const testNameWords = testName.split(' ');
             const result = { flag: null, lockOK: true };
             if ((categories.includes('HOSPITAL_URGENT_CARE') || categories.includes('DOCTOR_CLINIC'))
-                && (containsAny(testNameWords, _animalFullMatch) || _animalPartMatch.some(match => testName.includes(match)))) {
+                && (containsAny(testNameWords, _PNH_DATA[Country()]._animalFullMatch) || _PNH_DATA[Country()]._animalPartMatch.some(match => testName.includes(match)))) {
                 if (!_wl.changeHMC2PetVet) {
                     result.flag = new Flag.ChangeToPetVet();
                     result.lockOK = false;
@@ -2260,7 +2291,7 @@ let Flag = {
             const testNameWords = testName.split(' ');
 
             if (categories.includes('SCHOOL')
-                && (containsAny(testNameWords, _schoolFullMatch) || _schoolPartMatch.some(match => testName.includes(match)))) {
+                && (containsAny(testNameWords, _PNH_DATA[Country()]._schoolFullMatch) || _PNH_DATA[Country()]._schoolPartMatch.some(match => testName.includes(match)))) {
                 if (!_wl.changeSchool2Offices) {
                     result.flag = new Flag.NotASchool();
                     result.lockOK = false;
@@ -3365,7 +3396,7 @@ let Flag = {
             if (categories.includes('HOSPITAL_URGENT_CARE')) {
                 const testName = _newName.toLowerCase().replace(/[^a-z]/g, ' ');
                 const testNameWords = testName.split(' ');
-                if (containsAny(testNameWords, _hospitalFullMatch) || _hospitalPartMatch.some(match => testName.includes(match))) {
+                if (containsAny(testNameWords, _PNH_DATA[Country()]._hospitalFullMatch) || _PNH_DATA[Country()]._hospitalPartMatch.some(match => testName.includes(match))) {
                     if (!_wl.notAHospital) {
                         result.flag = new Flag.NotAHospital();
                         result.lockOK = false;
@@ -8365,12 +8396,19 @@ function downloadPnhData(skipBootstrap = false) {
 
         const processTermsCell = (termsValues, colIdx) => processData1(termsValues, colIdx)[1]
             .toLowerCase().split('|').map(value => value.trim());
-        _hospitalPartMatch = processTermsCell(values, 5);
-        _hospitalFullMatch = processTermsCell(values, 6);
-        _animalPartMatch = processTermsCell(values, 7);
-        _animalFullMatch = processTermsCell(values, 8);
-        _schoolPartMatch = processTermsCell(values, 9);
-        _schoolFullMatch = processTermsCell(values, 10);
+        _PNH_DATA.USA._hospitalPartMatch = processTermsCell(values, 5);
+        _PNH_DATA.USA._hospitalFullMatch = processTermsCell(values, 6);
+        _PNH_DATA.USA._animalPartMatch = processTermsCell(values, 7);
+        _PNH_DATA.USA._animalFullMatch = processTermsCell(values, 8);
+        _PNH_DATA.USA._schoolPartMatch = processTermsCell(values, 9);
+        _PNH_DATA.USA._schoolFullMatch = processTermsCell(values, 10);
+
+        _PNH_DATA.CAN._hospitalPartMatch = _PNH_DATA.USA._hospitalPartMatch
+        _PNH_DATA.CAN._hospitalFullMatch = _PNH_DATA.USA._hospitalFullMatch 
+        _PNH_DATA.CAN._animalPartMatch = _PNH_DATA.USA._animalPartMatch 
+        _PNH_DATA.CAN._animalFullMatch = _PNH_DATA.USA._animalFullMatch 
+        _PNH_DATA.CAN._schoolPartMatch = _PNH_DATA.USA._schoolPartMatch
+        _PNH_DATA.CAN._schoolFullMatch = _PNH_DATA.USA._schoolFullMatch
 
         downloadInternationalSettings(skipBootstrap);
 
@@ -8434,11 +8472,64 @@ function downloadInternationalPnhData(internat_sheets, skipBootstrap) {
 
     // TODO change the _PNH_DATA cache to use an object so we don't have to rely on ugly array index lookups.
     const processData1 = (data, colIdx) => data.filter(row => row.length >= colIdx + 1).map(row => row[colIdx]);
+    const processTermsCell = (termsValues, colIdx) => processData1(termsValues, colIdx)[0]
+            .toLowerCase().split('|').map(value => value.trim());
 
     // Loaded the settings for the countries. Now we load the sheets and the country specific settings
     for( const[country, settings] of Object.entries(internat_sheets)){
         // create country data
         _PNH_DATA[country] = {}
+        // get hosp
+        $.getJSON(getSpreadsheetUrl(settings.id, settings.hosp_p, API_KEY)).done(res => {
+            console.log("Loading Hospital part data for " + country);
+            const { values } = res;
+            _PNH_DATA[country]._hospitalPartMatch = processTermsCell(values, 0);
+        }).fail(res => {
+            const message = res.responseJSON && res.responseJSON.error ? res.responseJSON.error : 'See response error message above.';
+            console.error('WMEPH failed to load spreadsheet:', message);
+        });
+        $.getJSON(getSpreadsheetUrl(settings.id, settings.hosp_f, API_KEY)).done(res => {
+            console.log("Loading Hospital full data for " + country);
+            const { values } = res;
+            _PNH_DATA[country]._hospitalFullMatch = processTermsCell(values, 0);
+        }).fail(res => {
+            const message = res.responseJSON && res.responseJSON.error ? res.responseJSON.error : 'See response error message above.';
+            console.error('WMEPH failed to load spreadsheet:', message);
+        });
+        //animal
+        $.getJSON(getSpreadsheetUrl(settings.id, settings.anim_p, API_KEY)).done(res => {
+            console.log("Loading Animal part data for " + country);
+            const { values } = res;
+            _PNH_DATA[country]._animalPartMatch = processTermsCell(values, 0);
+        }).fail(res => {
+            const message = res.responseJSON && res.responseJSON.error ? res.responseJSON.error : 'See response error message above.';
+            console.error('WMEPH failed to load spreadsheet:', message);
+        });
+        $.getJSON(getSpreadsheetUrl(settings.id, settings.anim_f, API_KEY)).done(res => {
+            console.log("Loading Animal full data for " + country);
+            const { values } = res;
+            _PNH_DATA[country]._animalFullMatch = processTermsCell(values, 0);
+        }).fail(res => {
+            const message = res.responseJSON && res.responseJSON.error ? res.responseJSON.error : 'See response error message above.';
+            console.error('WMEPH failed to load spreadsheet:', message);
+        });
+        //school
+        $.getJSON(getSpreadsheetUrl(settings.id, settings.scho_p, API_KEY)).done(res => {
+            console.log("Loading School part data for " + country);
+            const { values } = res;
+            _PNH_DATA[country]._schoolPartMatch = processTermsCell(values, 0);
+        }).fail(res => {
+            const message = res.responseJSON && res.responseJSON.error ? res.responseJSON.error : 'See response error message above.';
+            console.error('WMEPH failed to load spreadsheet:', message);
+        });
+        $.getJSON(getSpreadsheetUrl(settings.id, settings.scho_f, API_KEY)).done(res => {
+            console.log("Loading School full data for " + country);
+            const { values } = res;
+            _PNH_DATA[country]._schoolFullMatch = processTermsCell(values, 0);
+        }).fail(res => {
+            const message = res.responseJSON && res.responseJSON.error ? res.responseJSON.error : 'See response error message above.';
+            console.error('WMEPH failed to load spreadsheet:', message);
+        });
         // Get the PHN Data for this country
         $.getJSON(getSpreadsheetUrl(settings.id, settings.phn_range, API_KEY)).done(res => {
             console.log("Loading PHN data for " + country);
@@ -8480,7 +8571,18 @@ function downloadInternationalPnhData(internat_sheets, skipBootstrap) {
 function waitForDataLoading(sheets){
     // Wait for all AJAX calls to finish -> Loading country data
     for (const country in sheets) {
-        if (!_PNH_DATA[country].pnhNames || !_PNH_DATA[country].categoryNames){
+        if (
+            !_PNH_DATA[country].pnhNames ||
+            !_PNH_DATA[country]._animalPartMatch ||
+            !_PNH_DATA[country]._animalFullMatch ||
+            !_PNH_DATA[country]._hospitalPartMatch ||
+            !_PNH_DATA[country]._hospitalFullMatch ||
+            !_PNH_DATA[country]._schoolPartMatch ||
+            !_PNH_DATA[country]._schoolFullMatch ||
+            !_PNH_DATA[country].categoryNames){
+            
+            phlog("Wating for data of " + country);
+                
             setTimeout(function(){
                 waitForDataLoading(sheets)
             }, 500);
