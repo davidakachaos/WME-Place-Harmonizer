@@ -7,7 +7,7 @@
 // @author      WMEPH Development Group
 // @include     /^https:\/\/(www|beta)\.waze\.com\/(?!user\/)(.{2,6}\/)?editor\/?.*$/
 // @require     https://greasyfork.org/scripts/24851-wazewrap/code/WazeWrap.js
-// @require     https://unpkg.com/libphonenumber-js@^1.8.5/bundle/libphonenumber-min.js
+// @require     https://unpkg.com/libphonenumber-js@^1.8.5/bundle/libphonenumber-max.js
 // @require     https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js
 // @license     GNU GPL v3
 // @grant       GM_addStyle
@@ -1708,15 +1708,16 @@ function normalizePhone(s, outputFormat, returnType, item, region) {
         _buttonBanner.phoneMissing = Flag.PhoneMissing.eval(item, _wl, region, outputFormat);
         return s;
     }
-    // check venue country
-    let address = item.getAddress();
-    let country = address.attributes.country.abbr;
 
     if(returnType === 'inputted'){
-        const phonenumber = new libphonenumber.parsePhoneNumberFromString(s, country);
-        if (phonenumber){
-            return phonenumber.format("INTERNATIONAL")
-        }else{
+        try {
+            const phonenumber = new libphonenumber.parsePhoneNumberFromString(s, Country());
+            if (phonenumber){
+                return phonenumber.format("INTERNATIONAL")
+            }else{
+                return 'badPhone';
+            }
+        }catch {
             return 'badPhone';
         }
     }
@@ -1727,7 +1728,7 @@ function normalizePhone(s, outputFormat, returnType, item, region) {
         // this isn't a phonenumber at all!
         _buttonBanner.phoneInvalid = new Flag.PhoneInvalid();
         return s;
-    } else if (phonenumber.country != country){
+    } else if (phonenumber.country != Country()){
         phlog("Phone number not valid for country!");
         if (returnType === 'inputted') {
             return 'badPhone';
@@ -2249,9 +2250,11 @@ let Flag = {
         static eval(name, categories) {
             const testName = name.toLowerCase().replace(/[^a-z]/g, ' ');
             const testNameWords = testName.split(' ');
+            const venue = getSelectedVenue();
+            const addrs = venue.getAddress();
             const result = { flag: null, lockOK: true };
             if ((categories.includes('HOSPITAL_URGENT_CARE') || categories.includes('DOCTOR_CLINIC'))
-                && (containsAny(testNameWords, _PNH_DATA[Country()]._animalFullMatch) || _PNH_DATA[Country()]._animalPartMatch.some(match => testName.includes(match)))) {
+                && (containsAny(testNameWords, _PNH_DATA[addrs.attributes.country]._animalFullMatch) || _PNH_DATA[addrs.attributes.country]._animalPartMatch.some(match => testName.includes(match)))) {
                 if (!_wl.changeHMC2PetVet) {
                     result.flag = new Flag.ChangeToPetVet();
                     result.lockOK = false;
