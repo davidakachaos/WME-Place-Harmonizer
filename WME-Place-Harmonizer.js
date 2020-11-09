@@ -255,6 +255,7 @@ let _wlKeyName;
 const _WL_BUTTON_TEXT = 'WL';
 const _WL_LOCAL_STORE_NAME = 'WMEPH-venueWhitelistNew';
 const _WL_LOCAL_STORE_NAME_COMPRESSED = 'WMEPH-venueWhitelistCompressed';
+const _PHN_DATA_LOCAL_STORE_NAME = 'WMEPH-PHNdataLocal';
 
 // Dupe check vars
 let _dupeLayer;
@@ -1722,8 +1723,8 @@ function normalizePhone(s, outputFormat, returnType, item, region) {
         }
     }
     // try the google phonenumber lib
-    const phonenumber = new libphonenumber.parsePhoneNumber(s);
-
+    const phonenumber = new libphonenumber.parsePhoneNumberFromString(s, Country());
+    
     if(!phonenumber.isValid()){
         // this isn't a phonenumber at all!
         _buttonBanner.phoneInvalid = new Flag.PhoneInvalid();
@@ -1869,12 +1870,13 @@ function normalizeURL(s, lc, skipBannerActivate, venue, region) {
     return s;
 } // END normalizeURL function
 
+// Gets the country for the current venue OR the current top country (for HL scan)
 function Country() {
     const venue = getSelectedVenue();
     if (venue){
         const addrs = venue.getAddress();
         if(addrs.attributes.country){
-            addrs.attributes.country.abbr;
+            return addrs.attributes.country.abbr;
         }else{
             phlog("No address set for venue");
             return W.model.topCountry.abbr;    
@@ -2250,11 +2252,10 @@ let Flag = {
         static eval(name, categories) {
             const testName = name.toLowerCase().replace(/[^a-z]/g, ' ');
             const testNameWords = testName.split(' ');
-            const venue = getSelectedVenue();
-            const addrs = venue.getAddress();
+            const country = Country();
             const result = { flag: null, lockOK: true };
             if ((categories.includes('HOSPITAL_URGENT_CARE') || categories.includes('DOCTOR_CLINIC'))
-                && (containsAny(testNameWords, _PNH_DATA[addrs.attributes.country]._animalFullMatch) || _PNH_DATA[addrs.attributes.country]._animalPartMatch.some(match => testName.includes(match)))) {
+                && (containsAny(testNameWords, _PNH_DATA[country]._animalFullMatch) || _PNH_DATA[country]._animalPartMatch.some(match => testName.includes(match)))) {
                 if (!_wl.changeHMC2PetVet) {
                     result.flag = new Flag.ChangeToPetVet();
                     result.lockOK = false;
@@ -8359,6 +8360,14 @@ const SPREADSHEET_RANGE = '2019.01.20.001!A2:L';
 const API_KEY = 'YTJWNVBVRkplbUZUZVVObU1YVXpSRVZ3ZW5OaFRFSk1SbTR4VGxKblRURjJlRTFYY3pOQ2NXZElPQT09';
 
 function downloadPnhData(skipBootstrap = false) {
+    if(!skipBootstrap){
+        // We're loading up! Trying local storage first
+        if(loadPNHFromLocalStorage()){
+            phlog("Loaded data from local storage! Done loading!");
+            placeHarmonizerBootstrap();
+            return;
+        }
+    }
     const dec = s => atob(atob(s));
     const getSpreadsheetUrl = (id, range, key) => `https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${range}?${dec(key)}`;
 
@@ -8564,14 +8573,11 @@ function downloadInternationalPnhData(internat_sheets, skipBootstrap) {
         });
     }
 
-    if (!skipBootstrap) {
-        // Wait for all the data for being loaded...
-        waitForDataLoading(internat_sheets);
-        //     placeHarmonizerBootstrap();
-    }
+    // Wait for all the data for being loaded...
+    waitForDataLoading(internat_sheets, skipBootstrap);
 }
 
-function waitForDataLoading(sheets){
+function waitForDataLoading(sheets, skipBootstrap){
     // Wait for all AJAX calls to finish -> Loading country data
     for (const country in sheets) {
         if (
@@ -8587,13 +8593,55 @@ function waitForDataLoading(sheets){
             phlog("Wating for data of " + country);
                 
             setTimeout(function(){
-                waitForDataLoading(sheets)
+                waitForDataLoading(sheets, skipBootstrap)
             }, 500);
             return false;
         }
     }
-    // All data has been loaded, so now we go ahead an boot the script.
-    placeHarmonizerBootstrap();
+    savePNHDataToLocalStorage();
+    if(!skipBootstrap){
+        // All data has been loaded, so now we go ahead an boot the script.
+        placeHarmonizerBootstrap();
+    }
+}
+
+// Meant to save all data to the users local storage
+function savePNHDataToLocalStorage(){
+    const current_loaded = JSON.stringify(_PNH_DATA);
+    const dev_list = JSON.stringify(_wmephDevList);
+    const beta_list = JSON.stringify(_wmephBetaList);
+    _currentDev = LZString.compressToUTF16(dev_list);
+    _currentBeta = LZString.compressToUTF16(beta_list);
+    _currentPNH = LZString.compressToUTF16(current_loaded);
+    // Also Save a kind of version number?
+    localStorage.setItem(_PHN_DATA_LOCAL_STORE_NAME, _currentPNH);
+    localStorage.setItem(_PHN_DATA_LOCAL_STORE_NAME + 'devList', _currentDev);
+    localStorage.setItem(_PHN_DATA_LOCAL_STORE_NAME + 'betaList', _currentBeta);
+    phlog("Saved data to local storage!");
+}
+
+function loadPNHFromLocalStorage(){
+    _localPNH = localStorage.getItem(_PHN_DATA_LOCAL_STORE_NAME);
+    if(_localPNH){
+        _localPNH = LZString.decompressFromUTF16(_localPNH);
+        _localPNH = JSON.parse(_localPNH);
+        // load local data into constant!
+        for(const country in _localPNH){
+            _PNH_DATA[country] = _localPNH[country];
+        }
+        try{
+            phlog('Loading user lists');
+            _localDev = LZString.decompressFromUTF16(localStorage.getItem(_PHN_DATA_LOCAL_STORE_NAME + 'devList'));
+            _localBeta = LZString.decompressFromUTF16(localStorage.getItem(_PHN_DATA_LOCAL_STORE_NAME + 'betaList'));
+            _wmephDevList = JSON.parse(_localDev);
+            _wmephBetaList = JSON.parse(_localBeta);
+        }catch{
+            phlog('User lists not local saved, loading failed');
+        }
+
+        return true; // loaded from localStorage
+    }
+    return false; // Could not load from local storage!
 }
 
 function bootstrap() {
